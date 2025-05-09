@@ -12,7 +12,7 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
-	"github.com/sagikazarmark/labx/xapi"
+	"github.com/sagikazarmark/labx/extended"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 )
@@ -85,7 +85,7 @@ func playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 
 	decoder := yaml.NewDecoder(manifestFile)
 
-	var sourceManifest xapi.PlaygroundManifest
+	var sourceManifest extended.PlaygroundManifest
 
 	err = decoder.Decode(&sourceManifest)
 	if err != nil {
@@ -98,17 +98,17 @@ func playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 	}
 
 	if hf {
-		machines := lo.Map(sourceManifest.Playground.Machines, func(machine xapi.PlaygroundMachine, _ int) string {
+		machines := lo.Map(sourceManifest.Playground.Machines, func(machine extended.PlaygroundMachine, _ int) string {
 			return machine.Name
 		})
 
 		const name = "init_files"
 
-		sourceManifest.Playground.InitTasks[name] = xapi.InitTask{
+		sourceManifest.Playground.InitTasks[name] = extended.InitTask{
 			Name:    name,
 			Machine: machines,
 			Init:    true,
-			User:    xapi.StringList{"root"},
+			User:    extended.StringList{"root"},
 			Run:     createDownloadScript(content.KindPlayground),
 		}
 	}

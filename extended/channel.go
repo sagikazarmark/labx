@@ -1,4 +1,4 @@
-package xapi
+package extended
 
 type Channel struct {
 	Name   string `yaml:"name" json:"name"`

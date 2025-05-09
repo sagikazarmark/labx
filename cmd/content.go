@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"strings"
 
 	"github.com/goccy/go-yaml"
 	"github.com/sagikazarmark/labx/core"
-	"github.com/sagikazarmark/labx/xapi"
+	"github.com/sagikazarmark/labx/extended"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 )
 
@@ -79,17 +81,38 @@ func _content(fsys fs.FS, channel string) (core.ContentManifest, error) {
 
 	decoder := yaml.NewDecoder(manifestFile)
 
-	var sourceManifest xapi.ContentManifest
+	var sourceManifest extended.ContentManifest
 
 	err = decoder.Decode(&sourceManifest)
 	if err != nil {
 		return core.ContentManifest{}, err
 	}
 
-	// hf, err := hasFiles(fsys, sourceManifest.Kind)
-	// if err != nil {
-	// 	return core.ContentManifest{}, err
-	// }
+	hf, err := hasFiles(fsys, sourceManifest.Kind)
+	if err != nil {
+		return core.ContentManifest{}, err
+	}
+
+	if hf {
+		machines := lo.Map(sourceManifest.Playground.Machines, func(machine extended.PlaygroundMachine, _ int) string {
+			return machine.Name
+		})
+
+		const name = "init_content_files"
+
+		sourceManifest.Tasks[name] = extended.Task{
+			Machine: machines,
+			Init:    true,
+			User:    extended.StringList{"root"},
+			Run:     createDownloadScript(sourceManifest.Kind),
+		}
+	}
+
+	if channel != "live" {
+		sourceManifest.Title = fmt.Sprintf("%s: %s", strings.ToUpper(channel), sourceManifest.Title)
+	}
+
+	// TODO: channel access control
 
 	basePlayground, err := getPlaygroundManifest(sourceManifest.Playground.Name)
 	if err != nil {

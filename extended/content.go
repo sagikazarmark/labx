@@ -1,4 +1,4 @@
-package xapi
+package extended
 
 import (
 	"slices"
@@ -124,12 +124,20 @@ type ContentPlaygroundSpec struct {
 }
 
 func (s ContentPlaygroundSpec) Convert() core.ContentPlaygroundSpec {
+	return core.ContentPlaygroundSpec{
+		Name:     s.Name,
+		Machines: s.convertMachines(),
+		Tabs:     s.Tabs,
+	}
+}
+
+func (s ContentPlaygroundSpec) convertMachines() []api.PlaygroundMachine {
 	parentMachines := lo.SliceToMap(s.Base.Machines, func(machine api.PlaygroundMachine) (string, api.PlaygroundMachine) {
 		return machine.Name, machine
 	})
 
-	// Make sure to include startup files from parent playground
-	machines := lo.Map(s.Machines.Convert(), func(machine api.PlaygroundMachine, _ int) api.PlaygroundMachine {
+	// Make sure to include startup files, users and resources from parent playground
+	return lo.Map(s.Machines.Convert(), func(machine api.PlaygroundMachine, _ int) api.PlaygroundMachine {
 		parentMachine := parentMachines[machine.Name]
 
 		machine.StartupFiles = append(slices.Clone(parentMachine.StartupFiles), machine.StartupFiles...)
@@ -148,12 +156,6 @@ func (s ContentPlaygroundSpec) Convert() core.ContentPlaygroundSpec {
 
 		return machine
 	})
-
-	return core.ContentPlaygroundSpec{
-		Name:     s.Name,
-		Machines: machines,
-		Tabs:     s.Tabs,
-	}
 }
 
 type Task struct {

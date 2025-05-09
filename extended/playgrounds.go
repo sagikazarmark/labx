@@ -1,11 +1,9 @@
-package xapi
+package extended
 
 import (
 	"fmt"
 	"slices"
-	"strings"
 
-	"github.com/goccy/go-yaml/ast"
 	"github.com/iximiuz/labctl/api"
 	"github.com/samber/lo"
 )
@@ -50,12 +48,23 @@ type PlaygroundSpec struct {
 }
 
 func (s PlaygroundSpec) Convert() api.PlaygroundSpec {
+	return api.PlaygroundSpec{
+		Machines:       s.convertMachines(),
+		Tabs:           s.Tabs,
+		InitTasks:      s.InitTasks.Convert(),
+		InitConditions: s.InitConditions,
+		RegistryAuth:   s.RegistryAuth,
+		AccessControl:  s.AccessControl,
+	}
+}
+
+func (s PlaygroundSpec) convertMachines() []api.PlaygroundMachine {
 	parentMachines := lo.SliceToMap(s.Base.Machines, func(machine api.PlaygroundMachine) (string, api.PlaygroundMachine) {
 		return machine.Name, machine
 	})
 
-	// Make sure to include startup files from parent playground
-	machines := lo.Map(s.Machines.Convert(), func(machine api.PlaygroundMachine, _ int) api.PlaygroundMachine {
+	// Make sure to include startup files, users and resources from parent playground
+	return lo.Map(s.Machines.Convert(), func(machine api.PlaygroundMachine, _ int) api.PlaygroundMachine {
 		parentMachine := parentMachines[machine.Name]
 
 		if len(machine.Users) == 0 {
@@ -72,15 +81,6 @@ func (s PlaygroundSpec) Convert() api.PlaygroundSpec {
 
 		return machine
 	})
-
-	return api.PlaygroundSpec{
-		Machines:       machines,
-		Tabs:           s.Tabs,
-		InitTasks:      s.InitTasks.Convert(),
-		InitConditions: s.InitConditions,
-		RegistryAuth:   s.RegistryAuth,
-		AccessControl:  s.AccessControl,
-	}
 }
 
 type PlaygroundMachines []PlaygroundMachine
@@ -176,7 +176,7 @@ func (t InitTasks) Convert() map[string]api.InitTask {
 					}
 
 					// dependency not found anywhere
-					panic("unknown dependency")
+					panic("unknown dependency:" + need)
 				}
 
 				initTasks[newInitTask.Name] = newInitTask
@@ -230,46 +230,4 @@ func (t InitTask) currentName(machine string, user string) string {
 	}
 
 	return taskName(t.Name, taskNameSegments...)
-}
-
-func taskName(base string, segments ...string) string {
-	for _, segment := range segments {
-		base += "_" + segment
-	}
-
-	return sanitizeTaskName(base)
-}
-
-func sanitizeTaskName(s string) string {
-	return strings.ReplaceAll(s, "-", "_")
-}
-
-type StringList []string
-
-func (s *StringList) UnmarshalYAML(node ast.Node) error {
-	switch n := node.(type) {
-	case *ast.StringNode:
-		*s = []string{n.Value}
-
-		return nil
-
-	case *ast.SequenceNode:
-		result := make([]string, 0, len(n.Values))
-
-		for _, elem := range n.Values {
-			strNode, ok := elem.(*ast.StringNode)
-			if !ok {
-				return fmt.Errorf("sequence element is not a string: %#v", elem)
-			}
-
-			result = append(result, strNode.Value)
-		}
-
-		*s = result
-
-		return nil
-
-	default:
-		return fmt.Errorf("unsupported YAML node type: %T", node)
-	}
 }
