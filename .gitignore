@@ -1,1 +1,6 @@
+/.devenv/
+/.direnv/
+
 /test/
+# Added by goreleaser init:
+dist/
