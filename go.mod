@@ -4,7 +4,7 @@ go 1.24.1
 
 require (
 	github.com/goccy/go-yaml v1.17.1
-	github.com/iximiuz/labctl v0.1.34
+	github.com/iximiuz/labctl v0.1.35-0.20250510170927-2fd00af22a4e
 	github.com/samber/lo v1.50.0
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
