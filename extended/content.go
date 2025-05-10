@@ -166,6 +166,7 @@ type Task struct {
 	User           StringList `yaml:"user" json:"user"`
 	TimeoutSeconds int        `yaml:"timeout_seconds" json:"timeout_seconds"`
 	Needs          []string   `yaml:"needs,omitempty" json:"needs,omitempty"`
+	Env            []string   `yaml:"env,omitempty" json:"env,omitempty"`
 	Run            string     `yaml:"run" json:"run"`
 }
 
@@ -174,6 +175,7 @@ func (t Task) Convert() core.Task {
 		Init:           t.Init,
 		TimeoutSeconds: t.TimeoutSeconds,
 		Needs:          slices.Clone(t.Needs),
+		Env:            slices.Clone(t.Env),
 		Run:            t.Run,
 	}
 }

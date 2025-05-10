@@ -31,5 +31,6 @@ type Task struct {
 	User           string   `yaml:"user" json:"user"`
 	TimeoutSeconds int      `yaml:"timeout_seconds" json:"timeout_seconds"`
 	Needs          []string `yaml:"needs,omitempty" json:"needs,omitempty"`
+	Env            []string `yaml:"env,omitempty" json:"env,omitempty"`
 	Run            string   `yaml:"run" json:"run"`
 }
