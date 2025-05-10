@@ -81,47 +81,47 @@ func _content(fsys fs.FS, channel string) (core.ContentManifest, error) {
 
 	decoder := yaml.NewDecoder(manifestFile)
 
-	var sourceManifest extended.ContentManifest
+	var extendedManifest extended.ContentManifest
 
-	err = decoder.Decode(&sourceManifest)
+	err = decoder.Decode(&extendedManifest)
 	if err != nil {
 		return core.ContentManifest{}, err
 	}
 
-	hf, err := hasFiles(fsys, sourceManifest.Kind)
+	hf, err := hasFiles(fsys, extendedManifest.Kind)
 	if err != nil {
 		return core.ContentManifest{}, err
 	}
 
 	if hf {
-		machines := lo.Map(sourceManifest.Playground.Machines, func(machine extended.PlaygroundMachine, _ int) string {
+		machines := lo.Map(extendedManifest.Playground.Machines, func(machine extended.PlaygroundMachine, _ int) string {
 			return machine.Name
 		})
 
 		const name = "init_content_files"
 
-		sourceManifest.Tasks[name] = extended.Task{
+		extendedManifest.Tasks[name] = extended.Task{
 			Machine: machines,
 			Init:    true,
 			User:    extended.StringList{"root"},
-			Run:     createDownloadScript(sourceManifest.Kind),
+			Run:     createDownloadScript(extendedManifest.Kind),
 		}
 	}
 
 	if channel != "live" {
-		sourceManifest.Title = fmt.Sprintf("%s: %s", strings.ToUpper(channel), sourceManifest.Title)
+		extendedManifest.Title = fmt.Sprintf("%s: %s", strings.ToUpper(channel), extendedManifest.Title)
 	}
 
 	// TODO: channel access control
 
-	basePlayground, err := getPlaygroundManifest(sourceManifest.Playground.Name)
+	basePlayground, err := getPlaygroundManifest(extendedManifest.Playground.Name)
 	if err != nil {
 		return core.ContentManifest{}, err
 	}
 
-	sourceManifest.Playground.Base = basePlayground.Playground
+	extendedManifest.Playground.Base = basePlayground.Playground
 
-	manifest := sourceManifest.Convert()
+	manifest := extendedManifest.Convert()
 
 	return manifest, err
 }
