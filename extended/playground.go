@@ -134,10 +134,10 @@ type InitTasks map[string]InitTask
 func (t InitTasks) Convert() map[string]api.InitTask {
 	initTasks := map[string]api.InitTask{}
 
-	for _, initTask := range t {
+	for name, initTask := range t {
 		for _, machine := range initTask.Machine {
 			for _, user := range initTask.User {
-				newInitTask := initTask.ConvertCurrent(machine, user)
+				newInitTask := initTask.ConvertCurrent(name, machine, user)
 
 				// Dependency check and resolution
 				for i, need := range newInitTask.Needs {
@@ -153,7 +153,7 @@ func (t InitTasks) Convert() map[string]api.InitTask {
 							panic("invalid dependency: user")
 						}
 
-						newInitTask.Needs[i] = dep.currentName(machine, user)
+						newInitTask.Needs[i] = dep.currentName(need, machine, user)
 
 						continue
 					}
@@ -209,16 +209,16 @@ func (t InitTask) Convert() api.InitTask {
 	}
 }
 
-func (t InitTask) ConvertCurrent(machine string, user string) api.InitTask {
+func (t InitTask) ConvertCurrent(name string, machine string, user string) api.InitTask {
 	initTask := t.Convert()
 	initTask.Machine = machine
 	initTask.User = user
-	initTask.Name = t.currentName(machine, user)
+	initTask.Name = t.currentName(name, machine, user)
 
 	return initTask
 }
 
-func (t InitTask) currentName(machine string, user string) string {
+func (t InitTask) currentName(name string, machine string, user string) string {
 	var taskNameSegments []string
 
 	if len(t.Machine) > 1 {
@@ -229,5 +229,9 @@ func (t InitTask) currentName(machine string, user string) string {
 		taskNameSegments = append(taskNameSegments, user)
 	}
 
-	return taskName(t.Name, taskNameSegments...)
+	if t.Name != "" {
+		name = t.Name
+	}
+
+	return taskName(name, taskNameSegments...)
 }
