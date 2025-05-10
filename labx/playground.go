@@ -60,6 +60,8 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 		return api.PlaygroundManifest{}, errors.New("missing channel data: " + channel)
 	}
 
+	extendedManifest.Name = channelData.Name
+
 	if channelData.Public {
 		extendedManifest.Playground.AccessControl = api.PlaygroundAccessControl{
 			CanList:  []string{"anyone"},
