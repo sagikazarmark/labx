@@ -28,7 +28,7 @@ and writes the output to a `dist/` directory relative to the source files.
 
 ## Features
 
-### Customize hostname
+### Customize hostname ([#8](https://github.com/iximiuz/labs/issues/8))
 
 You can set a custom `hostname` for any machine in a playground or content manifest by adding it to the machine spec:
 
@@ -41,7 +41,7 @@ playground:
 
 The specified hostname will be applied by generating a set of `startupFiles` that configure the machine accordingly.
 
-### Automatically download files
+### Automatically download files ([#24](https://github.com/iximiuz/labs/issues/24))
 
 Sometimes, you need to download files to the machine. This tool automates that step.
 
@@ -50,7 +50,7 @@ the tool automatically injects an init task into each machine to download and ex
 
 You're responsible for creating the archive, giving you full control over how the content is structured.
 
-### Run tasks on multiple machines and/or users
+### Run tasks on multiple machines and/or users ([#11](https://github.com/iximiuz/labs/issues/11))
 
 Sometimes you need to run the same task on multiple machines, for multiple users (e.g., to configure authentication), or both.
 
@@ -81,7 +81,7 @@ Any dependencies listed under `needs` are also updated accordingly.
       run: /opt/playground/proxy/install.sh
 ```
 
-## Improved merging of machines
+## Improved merging of machines ([#23](https://github.com/iximiuz/labs/issues/23))
 
 Right now, if you define `machines` for a custom playground in any content, any machine configuration from the playground gets overwritten.
 
