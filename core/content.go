@@ -11,6 +11,7 @@ type ContentManifest struct {
 	Description string                `yaml:"description" json:"description"`
 	Categories  []string              `yaml:"categories" json:"categories"`
 	Tags        []string              `yaml:"tagz" json:"tagz"`
+	Difficulty  string                `yaml:"difficulty,omitempty" json:"difficulty,omitempty"`
 	CreatedAt   string                `yaml:"createdAt" json:"createdAt"`
 	UpdatedAt   string                `yaml:"updatedAt" json:"updatedAt"`
 	Cover       string                `yaml:"cover" json:"cover"`

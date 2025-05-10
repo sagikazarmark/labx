@@ -16,6 +16,7 @@ type ContentManifest struct {
 	Channels    map[string]Channel    `yaml:"channels" json:"channels"`
 	Categories  []string              `yaml:"categories" json:"categories"`
 	Tags        []string              `yaml:"tagz" json:"tagz"`
+	Difficulty  string                `yaml:"difficulty,omitempty" json:"difficulty,omitempty"`
 	CreatedAt   string                `yaml:"createdAt" json:"createdAt"`
 	UpdatedAt   string                `yaml:"updatedAt" json:"updatedAt"`
 	Cover       string                `yaml:"cover" json:"cover"`
@@ -30,6 +31,7 @@ func (m ContentManifest) Convert() core.ContentManifest {
 		Description: m.Description,
 		Categories:  m.Categories,
 		Tags:        m.Tags,
+		Difficulty:  m.Difficulty,
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
 		Cover:       m.Cover,
