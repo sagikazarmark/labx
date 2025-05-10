@@ -20,6 +20,7 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 	if err != nil {
 		return api.PlaygroundManifest{}, err
 	}
+	defer manifestFile.Close()
 
 	decoder := yaml.NewDecoder(manifestFile)
 

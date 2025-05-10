@@ -55,11 +55,37 @@ func runContent(opts *contentOptions, output io.Writer) error {
 		return err
 	}
 
+	markdownFile, err := fsys.Open("index.md")
+	if err != nil {
+		return err
+	}
+	defer markdownFile.Close()
+
 	encoder := yaml.NewEncoder(
 		output,
 		yaml.UseLiteralStyleIfMultiline(true),
 		yaml.IndentSequence(true),
 	)
 
-	return encoder.Encode(manifest)
+	_, err = io.WriteString(output, "---\n")
+	if err != nil {
+		return err
+	}
+
+	err = encoder.Encode(manifest)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.WriteString(output, "---\n")
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(output, markdownFile)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

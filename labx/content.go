@@ -16,6 +16,7 @@ func Content(fsys fs.FS, channel string) (core.ContentManifest, error) {
 	if err != nil {
 		return core.ContentManifest{}, err
 	}
+	defer manifestFile.Close()
 
 	decoder := yaml.NewDecoder(manifestFile)
 
