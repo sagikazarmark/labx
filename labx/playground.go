@@ -36,10 +36,21 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 		return api.PlaygroundManifest{}, err
 	}
 
+	basePlayground, err := getPlaygroundManifest(extendedManifest.Base)
+	if err != nil {
+		return api.PlaygroundManifest{}, err
+	}
+
 	if hf {
 		machines := lo.Map(extendedManifest.Playground.Machines, func(machine extended.PlaygroundMachine, _ int) string {
 			return machine.Name
 		})
+
+		if len(machines) == 0 {
+			machines = lo.Map(basePlayground.Playground.Machines, func(machine api.PlaygroundMachine, _ int) string {
+				return machine.Name
+			})
+		}
 
 		const name = "init_files"
 
@@ -69,11 +80,6 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 			CanRead:  []string{"anyone"},
 			CanStart: []string{"anyone"},
 		}
-	}
-
-	basePlayground, err := getPlaygroundManifest(extendedManifest.Base)
-	if err != nil {
-		return api.PlaygroundManifest{}, err
 	}
 
 	extendedManifest.Playground.Base = basePlayground.Playground

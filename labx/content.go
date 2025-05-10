@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
+	"github.com/iximiuz/labctl/api"
 	"github.com/sagikazarmark/labx/core"
 	"github.com/sagikazarmark/labx/extended"
 	"github.com/samber/lo"
@@ -32,10 +33,21 @@ func Content(fsys fs.FS, channel string) (core.ContentManifest, error) {
 		return core.ContentManifest{}, err
 	}
 
+	basePlayground, err := getPlaygroundManifest(extendedManifest.Playground.Name)
+	if err != nil {
+		return core.ContentManifest{}, err
+	}
+
 	if hf {
 		machines := lo.Map(extendedManifest.Playground.Machines, func(machine extended.PlaygroundMachine, _ int) string {
 			return machine.Name
 		})
+
+		if len(machines) == 0 {
+			machines = lo.Map(basePlayground.Playground.Machines, func(machine api.PlaygroundMachine, _ int) string {
+				return machine.Name
+			})
+		}
 
 		const name = "init_content_files"
 
@@ -49,11 +61,6 @@ func Content(fsys fs.FS, channel string) (core.ContentManifest, error) {
 
 	if channel != "live" {
 		extendedManifest.Title = fmt.Sprintf("%s: %s", strings.ToUpper(channel), extendedManifest.Title)
-	}
-
-	basePlayground, err := getPlaygroundManifest(extendedManifest.Playground.Name)
-	if err != nil {
-		return core.ContentManifest{}, err
 	}
 
 	extendedManifest.Playground.Base = basePlayground.Playground
