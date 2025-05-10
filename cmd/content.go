@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"fmt"
+	"io"
 	"os"
 
 	"github.com/goccy/go-yaml"
@@ -21,7 +21,7 @@ func NewContentCommand() *cobra.Command {
 		Use:   "content",
 		Short: "Generate content",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runContent(&opts)
+			return runContent(&opts, cmd.OutOrStdout())
 		},
 	}
 
@@ -44,7 +44,7 @@ func NewContentCommand() *cobra.Command {
 	return cmd
 }
 
-func runContent(opts *contentOptions) error {
+func runContent(opts *contentOptions, output io.Writer) error {
 	fsys, err := os.OpenRoot(opts.path)
 	if err != nil {
 		return err
@@ -52,19 +52,14 @@ func runContent(opts *contentOptions) error {
 
 	manifest, err := labx.Content(fsys.FS(), opts.channel)
 	if err != nil {
-		panic(err)
-	}
-
-	bytes, err := yaml.MarshalWithOptions(
-		manifest,
-		yaml.UseLiteralStyleIfMultiline(true),
-		yaml.IndentSequence(true),
-	)
-	if err != nil {
 		return err
 	}
 
-	fmt.Println(string(bytes))
+	encoder := yaml.NewEncoder(
+		output,
+		yaml.UseLiteralStyleIfMultiline(true),
+		yaml.IndentSequence(true),
+	)
 
-	return nil
+	return encoder.Encode(manifest)
 }
