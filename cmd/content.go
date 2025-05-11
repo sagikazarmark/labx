@@ -3,6 +3,7 @@ package cmd
 import (
 	"io"
 	"os"
+	"strings"
 
 	"github.com/goccy/go-yaml"
 	"github.com/sagikazarmark/labx/labx"
@@ -44,6 +45,16 @@ func NewContentCommand() *cobra.Command {
 	return cmd
 }
 
+const betaNotice = `::remark-box
+---
+kind: warning
+---
+
+⚠️ This content is marked as **beta**, meaning it’s unfinished or still in progress and may change significantly.
+::
+
+`
+
 func runContent(opts *contentOptions, output io.Writer) error {
 	fsys, err := os.OpenRoot(opts.path)
 	if err != nil {
@@ -80,6 +91,13 @@ func runContent(opts *contentOptions, output io.Writer) error {
 	_, err = io.WriteString(output, "---\n")
 	if err != nil {
 		return err
+	}
+
+	if strings.ToLower(opts.channel) == "beta" {
+		_, err = io.WriteString(output, betaNotice)
+		if err != nil {
+			return err
+		}
 	}
 
 	_, err = io.Copy(output, markdownFile)
