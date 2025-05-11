@@ -3,6 +3,7 @@ package cmd
 import (
 	"io"
 	"os"
+	"strings"
 
 	"github.com/goccy/go-yaml"
 	"github.com/sagikazarmark/labx/labx"
@@ -53,6 +54,10 @@ func runPlayground(opts *playgroundOptions, output io.Writer) error {
 	manifest, err := labx.Playground(fsys.FS(), opts.channel)
 	if err != nil {
 		return err
+	}
+
+	if strings.ToLower(opts.channel) == "beta" {
+		manifest.Markdown = betaNotice + manifest.Markdown
 	}
 
 	encoder := yaml.NewEncoder(
