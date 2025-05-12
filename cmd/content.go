@@ -48,9 +48,7 @@ func runContent(opts *contentOptions) error {
 		return err
 	}
 
-	fsys := root.FS()
-
-	err = labx.Content(fsys, opts.channel)
+	err = labx.Content(root, opts.channel)
 	if err != nil {
 		return err
 	}

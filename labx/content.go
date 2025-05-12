@@ -18,13 +18,13 @@ import (
 	"github.com/samber/lo"
 )
 
-func Content(fsys fs.FS, channel string) error {
-	manifest, err := convertContentManifest(fsys, channel)
+func Content(root *os.Root, channel string) error {
+	manifest, err := convertContentManifest(root.FS(), channel)
 	if err != nil {
 		return err
 	}
 
-	indexFile, err := os.Create("dist/index.md")
+	indexFile, err := root.Create("dist/index.md")
 	if err != nil {
 		return err
 	}
@@ -58,9 +58,9 @@ func Content(fsys fs.FS, channel string) error {
 		}
 	}
 
-	tplFuncs := sprout.New(sprout.WithRegistries(sproutx.NewFSRegistry(fsys), sproutx.NewStringsRegistry())).Build()
+	tplFuncs := sprout.New(sprout.WithRegistries(sproutx.NewFSRegistry(root.FS()), sproutx.NewStringsRegistry())).Build()
 
-	tpl, err := template.New("index.md").Funcs(tplFuncs).ParseFS(fsys, "index.md")
+	tpl, err := template.New("index.md").Funcs(tplFuncs).ParseFS(root.FS(), "index.md")
 	if err != nil {
 		return err
 	}
@@ -71,19 +71,19 @@ func Content(fsys fs.FS, channel string) error {
 	}
 
 	if manifest.Kind == content.KindChallenge {
-		hasSolution, err := fileExists(fsys, "solution.md")
+		hasSolution, err := fileExists(root.FS(), "solution.md")
 		if err != nil {
 			return err
 		}
 
 		if hasSolution {
-			solutionFile, err := os.Create("dist/solution.md")
+			solutionFile, err := root.Create("dist/solution.md")
 			if err != nil {
 				return err
 			}
 			defer solutionFile.Close()
 
-			tpl, err := template.New("solution.md").Funcs(tplFuncs).ParseFS(fsys, "solution.md")
+			tpl, err := template.New("solution.md").Funcs(tplFuncs).ParseFS(root.FS(), "solution.md")
 			if err != nil {
 				return err
 			}
