@@ -30,7 +30,7 @@ func (r *StringsRegistry) LinkHandler(fh sprout.Handler) error {
 
 // Implements [sprout.Registry].
 func (r *StringsRegistry) RegisterFunctions(funcsMap sprout.FunctionMap) error {
-	sprout.AddFunction(funcsMap, "undindentSmart", r.UnindentSmart)
+	sprout.AddFunction(funcsMap, "unindentSmart", r.UnindentSmart)
 
 	return nil
 }
