@@ -58,14 +58,19 @@ func Content(root *os.Root, channel string) error {
 		}
 	}
 
-	tplFuncs := sprout.New(sprout.WithRegistries(sproutx.NewFSRegistry(root.FS()), sproutx.NewStringsRegistry())).Build()
+	tplFuncs := sprout.New(
+		sprout.WithRegistries(
+			sproutx.NewFSRegistry(root.FS()),
+			sproutx.NewStringsRegistry(),
+		),
+	).Build()
 
-	tpl, err := template.New("index.md").Funcs(tplFuncs).ParseFS(root.FS(), "index.md")
+	tpl, err := template.New("").Funcs(tplFuncs).ParseFS(root.FS(), "*.md")
 	if err != nil {
 		return err
 	}
 
-	err = tpl.Execute(indexFile, nil)
+	err = tpl.ExecuteTemplate(indexFile, "index.md", nil)
 	if err != nil {
 		return err
 	}
@@ -83,12 +88,7 @@ func Content(root *os.Root, channel string) error {
 			}
 			defer solutionFile.Close()
 
-			tpl, err := template.New("solution.md").Funcs(tplFuncs).ParseFS(root.FS(), "solution.md")
-			if err != nil {
-				return err
-			}
-
-			err = tpl.Execute(solutionFile, nil)
+			err = tpl.ExecuteTemplate(solutionFile, "solution.md", nil)
 			if err != nil {
 				return err
 			}
