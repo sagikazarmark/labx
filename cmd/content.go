@@ -2,11 +2,15 @@ package cmd
 
 import (
 	"io"
+	"io/fs"
 	"os"
 	"strings"
+	"text/template"
 
+	"github.com/go-sprout/sprout"
 	"github.com/goccy/go-yaml"
 	"github.com/sagikazarmark/labx/labx"
+	"github.com/sagikazarmark/labx/pkg/sproutx"
 	"github.com/spf13/cobra"
 )
 
@@ -56,21 +60,23 @@ kind: warning
 `
 
 func runContent(opts *contentOptions, output io.Writer) error {
-	fsys, err := os.OpenRoot(opts.path)
+	root, err := os.OpenRoot(opts.path)
 	if err != nil {
 		return err
 	}
 
-	manifest, err := labx.Content(fsys.FS(), opts.channel)
+	fsys := root.FS()
+
+	manifest, err := labx.Content(fsys, opts.channel)
 	if err != nil {
 		return err
 	}
 
-	markdownFile, err := fsys.Open("index.md")
-	if err != nil {
-		return err
-	}
-	defer markdownFile.Close()
+	// markdownFile, err := fsys.Open("index.md")
+	// if err != nil {
+	// 	return err
+	// }
+	// defer markdownFile.Close()
 
 	encoder := yaml.NewEncoder(
 		output,
@@ -100,10 +106,29 @@ func runContent(opts *contentOptions, output io.Writer) error {
 		}
 	}
 
-	_, err = io.Copy(output, markdownFile)
+	handler := sprout.New(sprout.WithRegistries(sproutx.NewRegistry()))
+	funcs := handler.Build()
+
+	tpl, err := template.New("index.md").Funcs(funcs).ParseFS(fsys, "index.md")
 	if err != nil {
 		return err
 	}
 
+	// tpl = tpl.Funcs(funcs)
+
+	err = tpl.Execute(output, templateData{fsys})
+	if err != nil {
+		return err
+	}
+
+	// _, err = io.Copy(output, markdownFile)
+	// if err != nil {
+	// 	return err
+	// }
+
 	return nil
+}
+
+type templateData struct {
+	Fsys fs.FS
 }
