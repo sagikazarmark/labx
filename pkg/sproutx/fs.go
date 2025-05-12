@@ -9,12 +9,16 @@ import (
 
 // FSRegistry struct implements the [sprout.Registry] interface, embedding the Handler to access shared functionalities.
 type FSRegistry struct {
+	fsys fs.FS
+
 	handler sprout.Handler
 }
 
 // NewFSRegistry initializes and returns a new [sprout.Registry].
-func NewFSRegistry() *FSRegistry {
-	return &FSRegistry{}
+func NewFSRegistry(fsys fs.FS) *FSRegistry {
+	return &FSRegistry{
+		fsys: fsys,
+	}
 }
 
 // Implements [sprout.Registry].
@@ -36,6 +40,6 @@ func (r *FSRegistry) RegisterFunctions(funcsMap sprout.FunctionMap) error {
 	return nil
 }
 
-func (r *FSRegistry) ReadFileRange(fsys fs.FS, name string, from int, to int) (string, error) {
-	return fsx.ReadFileRange(fsys, name, from, to)
+func (r *FSRegistry) ReadFileRange(name string, from int, to int) (string, error) {
+	return fsx.ReadFileRange(r.fsys, name, from, to)
 }

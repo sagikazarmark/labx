@@ -4,19 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"text/template"
 
-	"github.com/go-sprout/sprout"
 	"github.com/iximiuz/labctl/content"
-	"github.com/sagikazarmark/labx/pkg/sproutx"
 )
-
-func init() {
-	handler := sprout.New(sprout.WithRegistries(sproutx.NewFSRegistry(), sproutx.NewStringsRegistry()))
-	tplFuncs = handler.Build()
-}
-
-var tplFuncs template.FuncMap
 
 const betaNotice = `::remark-box
 ---

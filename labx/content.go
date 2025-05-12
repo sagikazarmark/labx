@@ -8,11 +8,13 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/go-sprout/sprout"
 	"github.com/goccy/go-yaml"
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
 	"github.com/sagikazarmark/labx/core"
 	"github.com/sagikazarmark/labx/extended"
+	"github.com/sagikazarmark/labx/pkg/sproutx"
 	"github.com/samber/lo"
 )
 
@@ -56,14 +58,14 @@ func Content(fsys fs.FS, channel string) error {
 		}
 	}
 
-	tplData := templateData{fsys}
+	tplFuncs := sprout.New(sprout.WithRegistries(sproutx.NewFSRegistry(fsys), sproutx.NewStringsRegistry())).Build()
 
 	tpl, err := template.New("index.md").Funcs(tplFuncs).ParseFS(fsys, "index.md")
 	if err != nil {
 		return err
 	}
 
-	err = tpl.Execute(indexFile, tplData)
+	err = tpl.Execute(indexFile, nil)
 	if err != nil {
 		return err
 	}
@@ -86,7 +88,7 @@ func Content(fsys fs.FS, channel string) error {
 				return err
 			}
 
-			err = tpl.Execute(solutionFile, tplData)
+			err = tpl.Execute(solutionFile, nil)
 			if err != nil {
 				return err
 			}
