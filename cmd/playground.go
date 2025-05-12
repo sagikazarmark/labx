@@ -68,3 +68,13 @@ func runPlayground(opts *playgroundOptions, output io.Writer) error {
 
 	return encoder.Encode(manifest)
 }
+
+const betaNotice = `::remark-box
+---
+kind: warning
+---
+
+⚠️ This content is marked as **beta**, meaning it’s unfinished or still in progress and may change significantly.
+::
+
+`
