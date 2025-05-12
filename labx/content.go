@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"github.com/go-sprout/sprout"
+	sproutstrings "github.com/go-sprout/sprout/registry/strings"
 	"github.com/goccy/go-yaml"
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
@@ -60,6 +61,7 @@ func Content(root *os.Root, channel string) error {
 
 	tplFuncs := sprout.New(
 		sprout.WithRegistries(
+			sproutstrings.NewRegistry(),
 			sproutx.NewFSRegistry(root.FS()),
 			sproutx.NewStringsRegistry(),
 		),
