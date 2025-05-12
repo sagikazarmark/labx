@@ -36,10 +36,20 @@ func (r *FSRegistry) LinkHandler(fh sprout.Handler) error {
 // Implements [sprout.Registry].
 func (r *FSRegistry) RegisterFunctions(funcsMap sprout.FunctionMap) error {
 	sprout.AddFunction(funcsMap, "readFileRange", r.ReadFileRange)
+	sprout.AddFunction(funcsMap, "readFileUntil", r.ReadFileUntil)
+	sprout.AddFunction(funcsMap, "readFileLine", r.ReadFileLine)
 
 	return nil
 }
 
 func (r *FSRegistry) ReadFileRange(name string, from int, to int) (string, error) {
 	return fsx.ReadFileRange(r.fsys, name, from, to)
+}
+
+func (r *FSRegistry) ReadFileUntil(name string, n int) (string, error) {
+	return fsx.ReadFileRange(r.fsys, name, 1, n)
+}
+
+func (r *FSRegistry) ReadFileLine(name string, n int) (string, error) {
+	return fsx.ReadFileRange(r.fsys, name, n, n)
 }
