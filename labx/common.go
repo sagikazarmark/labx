@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	handler := sprout.New(sprout.WithRegistries(sproutx.NewRegistry()))
+	handler := sprout.New(sprout.WithRegistries(sproutx.NewFSRegistry(), sproutx.NewStringsRegistry()))
 	tplFuncs = handler.Build()
 }
 

@@ -12,8 +12,8 @@ type FSRegistry struct {
 	handler sprout.Handler
 }
 
-// NewRegistry initializes and returns a new [sprout.Registry].
-func NewRegistry() *FSRegistry {
+// NewFSRegistry initializes and returns a new [sprout.Registry].
+func NewFSRegistry() *FSRegistry {
 	return &FSRegistry{}
 }
 
