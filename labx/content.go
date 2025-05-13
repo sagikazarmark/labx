@@ -67,7 +67,20 @@ func Content(root *os.Root, channel string) error {
 		),
 	).Build()
 
-	tpl, err := template.New("").Funcs(tplFuncs).ParseFS(root.FS(), "*.md")
+	patterns := []string{"*.md"}
+
+	{
+		matches, err := fs.Glob(root.FS(), "templates/*.md")
+		if err != nil {
+			return err
+		}
+
+		if len(matches) > 0 {
+			patterns = append(patterns, "templates/*.md")
+		}
+	}
+
+	tpl, err := template.New("").Funcs(tplFuncs).ParseFS(root.FS(), patterns...)
 	if err != nil {
 		return err
 	}
