@@ -36,6 +36,7 @@ func (m PlaygroundManifest) Convert() api.PlaygroundManifest {
 }
 
 type PlaygroundSpec struct {
+	Welcome        string              `yaml:"welcome" json:"welcome"`
 	Machines       PlaygroundMachines  `yaml:"machines" json:"machines"`
 	Tabs           []api.PlaygroundTab `yaml:"tabs" json:"tabs"`
 	InitTasks      InitTasks           `yaml:"initTasks" json:"initTasks"`
@@ -69,6 +70,18 @@ func (s PlaygroundSpec) convertMachines() []api.PlaygroundMachine {
 
 		if len(machine.Users) == 0 {
 			machine.Users = slices.Clone(parentMachine.Users)
+		}
+
+		if s.Welcome != "" {
+			for i, user := range machine.Users {
+				if !user.Default {
+					continue
+				}
+
+				if user.Welcome == "" || user.Welcome == "-" {
+					machine.Users[i].Welcome = s.Welcome
+				}
+			}
 		}
 
 		if machine.Resources.CPUCount == 0 {

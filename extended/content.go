@@ -119,6 +119,7 @@ func (m ContentManifest) convertTasks() map[string]core.Task {
 
 type ContentPlaygroundSpec struct {
 	Name     string              `yaml:"name" json:"name"`
+	Welcome  string              `yaml:"welcome" json:"welcome"`
 	Machines PlaygroundMachines  `yaml:"machines" json:"machines"`
 	Tabs     []api.PlaygroundTab `yaml:"tabs" json:"tabs"`
 
@@ -146,6 +147,18 @@ func (s ContentPlaygroundSpec) convertMachines() []api.PlaygroundMachine {
 
 		if len(machine.Users) == 0 {
 			machine.Users = slices.Clone(parentMachine.Users)
+		}
+
+		if s.Welcome != "" {
+			for i, user := range machine.Users {
+				if !user.Default {
+					continue
+				}
+
+				if user.Welcome == "" || user.Welcome == "-" {
+					machine.Users[i].Welcome = s.Welcome
+				}
+			}
 		}
 
 		if machine.Resources.CPUCount == 0 {
