@@ -113,9 +113,15 @@ type PlaygroundMachine struct {
 	StartupFiles []api.MachineStartupFile `yaml:"startupFiles" json:"startupFiles"`
 }
 
-const codeServerUnit = `[Service]
-ExecStart=
+const codeServerUnit = `[Unit]
+Description=code-server
+
+[Service]
+Type=exec
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/usr/local/go/bin:/home/laborant/go/bin" "HOME=/home/laborant"
+User=laborant
 ExecStart=/usr/bin/code-server --bind-addr=127.0.0.1:50062 --auth none --disable-telemetry --disable-update-check --disable-workspace-trust --disable-getting-started-override --app-name="iximiuz Labs" %s
+Restart=on-failure
 `
 
 func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
@@ -140,7 +146,7 @@ func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
 
 	if m.IDEPath != "" {
 		unit := api.MachineStartupFile{
-			Path:    "/etc/systemd/system/code-server.d/override.conf",
+			Path:    "/usr/lib/systemd/system/code-server.service",
 			Content: fmt.Sprintf(codeServerUnit, m.IDEPath),
 			Owner:   "root:root",
 			Mode:    "644",
