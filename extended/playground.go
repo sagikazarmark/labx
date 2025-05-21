@@ -120,8 +120,10 @@ Description=code-server
 Type=exec
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/usr/local/go/bin:/home/laborant/go/bin" "HOME=/home/laborant"
 User=laborant
-ExecStart=/usr/bin/code-server --bind-addr=127.0.0.1:50062 --auth none --disable-telemetry --disable-update-check --disable-workspace-trust --disable-getting-started-override --app-name="iximiuz Labs" %s
+ExecStart=/usr/bin/code-server --bind-addr=127.0.0.1:50062 --auth none --disable-telemetry --disable-update-check --disable-workspace-trust --disable-getting-started-override --app-name="iximiuz Labs" $CODE_SERVER_PATH
 Restart=on-failure
+Environment=CODE_SERVER_PATH=/home/laborant
+Environment=CODE_SERVER_PATH=%s
 `
 
 func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
