@@ -106,39 +106,60 @@ func (m PlaygroundMachines) Convert() []api.PlaygroundMachine {
 
 type PlaygroundMachine struct {
 	Name         string                   `yaml:"name" json:"name"`
-	Hostname     string                   `yaml:"hostname" json:"hostname"`
+	Hostname     string                   `yaml:"hostname,omitempty" json:"hostname,omitempty"`
+	IDEPath      string                   `yaml:"idePath,omitempt" json:"idePath,omitempty"`
 	Users        []api.MachineUser        `yaml:"users" json:"users"`
 	Resources    api.MachineResources     `yaml:"resources" json:"resources"`
 	StartupFiles []api.MachineStartupFile `yaml:"startupFiles" json:"startupFiles"`
 }
 
+const codeServerUnit = `[Unit]
+Description=code-server
+
+[Service]
+Type=exec
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/usr/local/go/bin:/home/laborant/go/bin" "HOME=/home/laborant"
+User=laborant
+ExecStart=/usr/bin/code-server --bind-addr=127.0.0.1:50062 --auth none --disable-telemetry --disable-update-check --disable-workspace-trust --disable-getting-started-override --app-name="iximiuz Labs" %s
+Restart=on-failure
+`
+
 func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
-	startupFiles := m.StartupFiles
+	var playgroundStartupFiles []api.MachineStartupFile
 
 	if m.Hostname != "" {
-		startupFiles = make([]api.MachineStartupFile, 2, len(m.StartupFiles)+2)
-
-		startupFiles[0] = api.MachineStartupFile{
+		hostname := api.MachineStartupFile{
 			Path:    "/etc/hostname",
 			Content: m.Hostname,
 			Mode:    "755",
 			Owner:   "root:root",
 		}
 
-		startupFiles[1] = api.MachineStartupFile{
+		hosts := api.MachineStartupFile{
 			Path:    "/etc/hosts",
 			Content: fmt.Sprintf("127.0.0.1       %s %s.local\n", m.Hostname, m.Hostname),
 			Append:  true,
 		}
 
-		startupFiles = append(startupFiles, m.StartupFiles...)
+		playgroundStartupFiles = append(playgroundStartupFiles, hostname, hosts)
+	}
+
+	if m.IDEPath != "" {
+		unit := api.MachineStartupFile{
+			Path:    "/usr/lib/systemd/system/code-server.service",
+			Content: fmt.Sprintf(codeServerUnit, m.IDEPath),
+			Owner:   "root:root",
+			Mode:    "644",
+		}
+
+		playgroundStartupFiles = append(playgroundStartupFiles, unit)
 	}
 
 	return api.PlaygroundMachine{
 		Name:         m.Name,
 		Users:        m.Users,
 		Resources:    m.Resources,
-		StartupFiles: startupFiles,
+		StartupFiles: append(playgroundStartupFiles, m.StartupFiles...),
 	}
 }
 
