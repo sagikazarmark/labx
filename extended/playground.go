@@ -107,7 +107,7 @@ func (m PlaygroundMachines) Convert() []api.PlaygroundMachine {
 type PlaygroundMachine struct {
 	Name         string                   `yaml:"name" json:"name"`
 	Hostname     string                   `yaml:"hostname,omitempty" json:"hostname,omitempty"`
-	IDEPath      string                   `yaml:"idePath,omitempt" json:"idePath,omitempty"`
+	IDEPath      string                   `yaml:"idePath,omitempty" json:"idePath,omitempty"`
 	Users        []api.MachineUser        `yaml:"users" json:"users"`
 	Resources    api.MachineResources     `yaml:"resources" json:"resources"`
 	StartupFiles []api.MachineStartupFile `yaml:"startupFiles" json:"startupFiles"`
