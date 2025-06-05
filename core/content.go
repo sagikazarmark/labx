@@ -15,8 +15,8 @@ type ContentManifest struct {
 	CreatedAt   string                `yaml:"createdAt" json:"createdAt"`
 	UpdatedAt   string                `yaml:"updatedAt" json:"updatedAt"`
 	Cover       string                `yaml:"cover" json:"cover"`
-	Playground  ContentPlaygroundSpec `yaml:"playground" json:"playground"`
-	Tasks       map[string]Task       `yaml:"tasks" json:"tasks"`
+	Playground  ContentPlaygroundSpec `yaml:"playground,omitempty" json:"playground,omitzero"`
+	Tasks       map[string]Task       `yaml:"tasks,omitempty" json:"tasks,omitzero"`
 }
 
 type ContentPlaygroundSpec struct {

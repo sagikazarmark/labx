@@ -25,7 +25,7 @@ type ContentManifest struct {
 }
 
 func (m ContentManifest) Convert() core.ContentManifest {
-	return core.ContentManifest{
+	v := core.ContentManifest{
 		Kind:        m.Kind,
 		Title:       m.Title,
 		Description: m.Description,
@@ -35,9 +35,15 @@ func (m ContentManifest) Convert() core.ContentManifest {
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
 		Cover:       m.Cover,
-		Playground:  m.Playground.Convert(),
-		Tasks:       m.convertTasks(),
+		// Playground:  m.Playground.Convert(),
+		Tasks: m.convertTasks(),
 	}
+
+	if m.Kind != content.KindTraining {
+		v.Playground = m.Playground.Convert()
+	}
+
+	return v
 }
 
 func (m ContentManifest) convertTasks() map[string]core.Task {
