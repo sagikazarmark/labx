@@ -124,23 +124,30 @@ func (m ContentManifest) convertTasks() map[string]core.Task {
 }
 
 type ContentPlaygroundSpec struct {
-	Name     string              `yaml:"name" json:"name"`
-	Welcome  string              `yaml:"welcome" json:"welcome"`
-	Machines PlaygroundMachines  `yaml:"machines" json:"machines"`
-	Tabs     []api.PlaygroundTab `yaml:"tabs" json:"tabs"`
+	Name     string                  `yaml:"name" json:"name"`
+	Welcome  string                  `yaml:"welcome" json:"welcome"`
+	Networks []api.PlaygroundNetwork `yaml:"networks" json:"networks"`
+	Machines PlaygroundMachines      `yaml:"machines" json:"machines"`
+	Tabs     []api.PlaygroundTab     `yaml:"tabs" json:"tabs"`
 
-	Base api.PlaygroundSpec `yaml:"-" json:"-"`
+	BaseName string             `yaml:"-" json:"-"`
+	Base     api.PlaygroundSpec `yaml:"-" json:"-"`
 }
 
 func (s ContentPlaygroundSpec) Convert() core.ContentPlaygroundSpec {
 	return core.ContentPlaygroundSpec{
 		Name:     s.Name,
+		Networks: s.Networks,
 		Machines: s.convertMachines(),
 		Tabs:     s.Tabs,
 	}
 }
 
 func (s ContentPlaygroundSpec) convertMachines() []api.PlaygroundMachine {
+	if s.BaseName == "flexbox" {
+		return s.Machines.Convert()
+	}
+
 	parentMachines := lo.SliceToMap(s.Base.Machines, func(machine api.PlaygroundMachine) (string, api.PlaygroundMachine) {
 		return machine.Name, machine
 	})

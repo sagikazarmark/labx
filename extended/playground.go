@@ -36,20 +36,23 @@ func (m PlaygroundManifest) Convert() api.PlaygroundManifest {
 }
 
 type PlaygroundSpec struct {
-	Welcome        string              `yaml:"welcome" json:"welcome"`
-	Machines       PlaygroundMachines  `yaml:"machines" json:"machines"`
-	Tabs           []api.PlaygroundTab `yaml:"tabs" json:"tabs"`
-	InitTasks      InitTasks           `yaml:"initTasks" json:"initTasks"`
-	InitConditions api.InitConditions  `yaml:"initConditions" json:"initConditions"`
-	RegistryAuth   string              `yaml:"registryAuth,omitempty" json:"registryAuth,omitempty"`
+	Welcome        string                  `yaml:"welcome" json:"welcome"`
+	Networks       []api.PlaygroundNetwork `yaml:"networks" json:"networks"`
+	Machines       PlaygroundMachines      `yaml:"machines" json:"machines"`
+	Tabs           []api.PlaygroundTab     `yaml:"tabs" json:"tabs"`
+	InitTasks      InitTasks               `yaml:"initTasks" json:"initTasks"`
+	InitConditions api.InitConditions      `yaml:"initConditions" json:"initConditions"`
+	RegistryAuth   string                  `yaml:"registryAuth,omitempty" json:"registryAuth,omitempty"`
 
 	AccessControl api.PlaygroundAccessControl `yaml:"accessControl" json:"accessControl"`
 
-	Base api.PlaygroundSpec `yaml:"-" json:"-"`
+	BaseName string             `yaml:"-" json:"-"`
+	Base     api.PlaygroundSpec `yaml:"-" json:"-"`
 }
 
 func (s PlaygroundSpec) Convert() api.PlaygroundSpec {
 	return api.PlaygroundSpec{
+		Networks:       s.Networks,
 		Machines:       s.convertMachines(),
 		Tabs:           s.Tabs,
 		InitTasks:      s.InitTasks.Convert(),
@@ -60,6 +63,10 @@ func (s PlaygroundSpec) Convert() api.PlaygroundSpec {
 }
 
 func (s PlaygroundSpec) convertMachines() []api.PlaygroundMachine {
+	if s.BaseName == "flexbox" {
+		return s.Machines.Convert()
+	}
+
 	parentMachines := lo.SliceToMap(s.Base.Machines, func(machine api.PlaygroundMachine) (string, api.PlaygroundMachine) {
 		return machine.Name, machine
 	})
@@ -109,6 +116,9 @@ type PlaygroundMachine struct {
 	Hostname     string                   `yaml:"hostname,omitempty" json:"hostname,omitempty"`
 	IDEPath      string                   `yaml:"idePath,omitempty" json:"idePath,omitempty"`
 	Users        []api.MachineUser        `yaml:"users" json:"users"`
+	Kernel       string                   `yaml:"kernel,omitempty" json:"kernel,omitempty"`
+	Drives       []api.MachineDrive       `yaml:"drives" json:"drives"`
+	Network      api.MachineNetwork       `yaml:"network" json:"network"`
 	Resources    api.MachineResources     `yaml:"resources" json:"resources"`
 	StartupFiles []api.MachineStartupFile `yaml:"startupFiles" json:"startupFiles"`
 }
@@ -160,6 +170,9 @@ func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
 	return api.PlaygroundMachine{
 		Name:         m.Name,
 		Users:        m.Users,
+		Kernel:       m.Kernel,
+		Drives:       m.Drives,
+		Network:      m.Network,
 		Resources:    m.Resources,
 		StartupFiles: append(playgroundStartupFiles, m.StartupFiles...),
 	}

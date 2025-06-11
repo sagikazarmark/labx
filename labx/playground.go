@@ -82,6 +82,7 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 		}
 	}
 
+	extendedManifest.Playground.BaseName = basePlayground.Name
 	extendedManifest.Playground.Base = basePlayground.Playground
 
 	manifest := extendedManifest.Convert()

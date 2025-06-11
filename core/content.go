@@ -21,6 +21,7 @@ type ContentManifest struct {
 
 type ContentPlaygroundSpec struct {
 	Name     string                  `yaml:"name,omitempty" json:"name,omitempty"`
+	Networks []api.PlaygroundNetwork `yaml:"networks" json:"networks"`
 	Machines []api.PlaygroundMachine `yaml:"machines,omitempty" json:"machines,omitempty"`
 	Tabs     []api.PlaygroundTab     `yaml:"tabs,omitempty" json:"tabs,omitempty"`
 }

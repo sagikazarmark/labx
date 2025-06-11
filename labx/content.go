@@ -164,6 +164,7 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 		extendedManifest.Title = fmt.Sprintf("%s: %s", strings.ToUpper(channel), extendedManifest.Title)
 	}
 
+	extendedManifest.Playground.BaseName = basePlayground.Name
 	extendedManifest.Playground.Base = basePlayground.Playground
 
 	manifest := extendedManifest.Convert()

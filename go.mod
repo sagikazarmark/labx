@@ -2,6 +2,8 @@ module github.com/sagikazarmark/labx
 
 go 1.24.1
 
+replace github.com/iximiuz/labctl => github.com/sagikazarmark/labctl v0.0.0-20250611175112-e202fa6c1f13
+
 require (
 	github.com/go-sprout/sprout v1.0.0
 	github.com/goccy/go-yaml v1.17.1
