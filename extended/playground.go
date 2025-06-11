@@ -112,15 +112,15 @@ func (m PlaygroundMachines) Convert() []api.PlaygroundMachine {
 }
 
 type PlaygroundMachine struct {
-	Name         string                   `yaml:"name" json:"name"`
-	Hostname     string                   `yaml:"hostname,omitempty" json:"hostname,omitempty"`
-	IDEPath      string                   `yaml:"idePath,omitempty" json:"idePath,omitempty"`
-	Users        []api.MachineUser        `yaml:"users" json:"users"`
-	Kernel       string                   `yaml:"kernel,omitempty" json:"kernel,omitempty"`
-	Drives       []api.MachineDrive       `yaml:"drives" json:"drives"`
-	Network      api.MachineNetwork       `yaml:"network" json:"network"`
-	Resources    api.MachineResources     `yaml:"resources" json:"resources"`
-	StartupFiles []api.MachineStartupFile `yaml:"startupFiles" json:"startupFiles"`
+	Name         string               `yaml:"name" json:"name"`
+	Hostname     string               `yaml:"hostname,omitempty" json:"hostname,omitempty"`
+	IDEPath      string               `yaml:"idePath,omitempty" json:"idePath,omitempty"`
+	Users        []api.MachineUser    `yaml:"users" json:"users"`
+	Kernel       string               `yaml:"kernel,omitempty" json:"kernel,omitempty"`
+	Drives       []api.MachineDrive   `yaml:"drives" json:"drives"`
+	Network      api.MachineNetwork   `yaml:"network" json:"network"`
+	Resources    api.MachineResources `yaml:"resources" json:"resources"`
+	StartupFiles MachineStartupFiles  `yaml:"startupFiles" json:"startupFiles"`
 }
 
 const codeServerUnit = `[Unit]
@@ -174,7 +174,34 @@ func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
 		Drives:       m.Drives,
 		Network:      m.Network,
 		Resources:    m.Resources,
-		StartupFiles: append(playgroundStartupFiles, m.StartupFiles...),
+		StartupFiles: append(playgroundStartupFiles, m.StartupFiles.Convert()...),
+	}
+}
+
+type MachineStartupFiles []MachineStartupFile
+
+func (m MachineStartupFiles) Convert() []api.MachineStartupFile {
+	return lo.Map(m, func(file MachineStartupFile, _ int) api.MachineStartupFile {
+		return file.Convert()
+	})
+}
+
+type MachineStartupFile struct {
+	Path     string `yaml:"path" json:"path"`
+	FromFile string `yaml:"fromFile,omitempty" json:"fromFile,omitempty"`
+	Content  string `yaml:"content,omitempty" json:"content,omitempty"`
+	Mode     string `yaml:"mode,omitempty" json:"mode,omitempty"`
+	Owner    string `yaml:"owner,omitempty" json:"owner,omitempty"`
+	Append   bool   `yaml:"append,omitempty" json:"append,omitempty"`
+}
+
+func (f MachineStartupFile) Convert() api.MachineStartupFile {
+	return api.MachineStartupFile{
+		Path:    f.Path,
+		Content: f.Content,
+		Mode:    f.Mode,
+		Owner:   f.Owner,
+		Append:  f.Append,
 	}
 }
 

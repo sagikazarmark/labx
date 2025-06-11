@@ -10,7 +10,7 @@ import (
 )
 
 func TestPlaygroundMachine_Hostname(t *testing.T) {
-	startupFile := api.MachineStartupFile{
+	startupFile := extended.MachineStartupFile{
 		Path:    "/foo",
 		Content: "bar",
 		Mode:    "755",
@@ -24,7 +24,7 @@ func TestPlaygroundMachine_Hostname(t *testing.T) {
 		Name:         "test",
 		Hostname:     hostname,
 		Users:        []api.MachineUser{},
-		StartupFiles: []api.MachineStartupFile{startupFile},
+		StartupFiles: extended.MachineStartupFiles{startupFile},
 	}
 
 	expected := api.PlaygroundMachine{
@@ -43,7 +43,13 @@ func TestPlaygroundMachine_Hostname(t *testing.T) {
 				Content: fmt.Sprintf("127.0.0.1       %s %s.local\n", hostname, hostname),
 				Append:  true,
 			},
-			startupFile,
+			{
+				Path:    "/foo",
+				Content: "bar",
+				Mode:    "755",
+				Owner:   "root:root",
+				Append:  false,
+			},
 		},
 	}
 
