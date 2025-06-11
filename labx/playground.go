@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os/exec"
 	"strings"
@@ -84,6 +85,26 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 
 	extendedManifest.Playground.BaseName = basePlayground.Name
 	extendedManifest.Playground.Base = basePlayground.Playground
+
+	for i, machine := range extendedManifest.Playground.Machines {
+		for j, startupFile := range machine.StartupFiles {
+			if startupFile.FromFile == "" {
+				continue
+			}
+
+			contentFile, err := fsys.Open(startupFile.FromFile)
+			if err != nil {
+				return api.PlaygroundManifest{}, err
+			}
+
+			content, err := io.ReadAll(contentFile)
+			if err != nil {
+				return api.PlaygroundManifest{}, err
+			}
+
+			extendedManifest.Playground.Machines[i].StartupFiles[j].Content = string(content)
+		}
+	}
 
 	manifest := extendedManifest.Convert()
 
