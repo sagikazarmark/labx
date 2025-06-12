@@ -39,7 +39,7 @@ func (m ContentManifest) Convert() core.ContentManifest {
 		Tasks: m.convertTasks(),
 	}
 
-	if m.Kind != content.KindTraining {
+	if m.Kind != content.KindTraining && m.Kind != content.KindCourse {
 		v.Playground = m.Playground.Convert()
 	}
 
