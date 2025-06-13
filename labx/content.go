@@ -129,42 +129,65 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 		return core.ContentManifest{}, err
 	}
 
-	hf, err := hasFiles(fsys, extendedManifest.Kind)
-	if err != nil {
-		return core.ContentManifest{}, err
-	}
-
-	basePlayground, err := getPlaygroundManifest(extendedManifest.Playground.Name)
-	if err != nil {
-		return core.ContentManifest{}, err
-	}
-
-	if hf {
-		machines := lo.Map(extendedManifest.Playground.Machines, func(machine extended.PlaygroundMachine, _ int) string {
-			return machine.Name
-		})
-
-		if len(machines) == 0 {
-			machines = lo.Map(basePlayground.Playground.Machines, func(machine api.PlaygroundMachine, _ int) string {
-				return machine.Name
-			})
+	if extendedManifest.Kind != content.KindTraining && extendedManifest.Kind != content.KindCourse {
+		hf, err := hasFiles(fsys, extendedManifest.Kind)
+		if err != nil {
+			return core.ContentManifest{}, err
 		}
 
-		const name = "init_content_files"
+		basePlayground, err := getPlaygroundManifest(extendedManifest.Playground.Name)
+		if err != nil {
+			return core.ContentManifest{}, err
+		}
 
-		extendedManifest.Tasks[name] = extended.Task{
-			Machine: machines,
-			Init:    true,
-			User:    extended.StringList{"root"},
-			Run:     createDownloadScript(extendedManifest.Kind),
+		if hf {
+			machines := lo.Map(extendedManifest.Playground.Machines, func(machine extended.PlaygroundMachine, _ int) string {
+				return machine.Name
+			})
+
+			if len(machines) == 0 {
+				machines = lo.Map(basePlayground.Playground.Machines, func(machine api.PlaygroundMachine, _ int) string {
+					return machine.Name
+				})
+			}
+
+			const name = "init_content_files"
+
+			extendedManifest.Tasks[name] = extended.Task{
+				Machine: machines,
+				Init:    true,
+				User:    extended.StringList{"root"},
+				Run:     createDownloadScript(extendedManifest.Kind),
+			}
+		}
+
+		extendedManifest.Playground.BaseName = basePlayground.Name
+		extendedManifest.Playground.Base = basePlayground.Playground
+
+		for i, machine := range extendedManifest.Playground.Machines {
+			for j, startupFile := range machine.StartupFiles {
+				if startupFile.FromFile == "" {
+					continue
+				}
+
+				contentFile, err := fsys.Open(startupFile.FromFile)
+				if err != nil {
+					return core.ContentManifest{}, err
+				}
+
+				content, err := io.ReadAll(contentFile)
+				if err != nil {
+					return core.ContentManifest{}, err
+				}
+
+				extendedManifest.Playground.Machines[i].StartupFiles[j].Content = string(content)
+			}
 		}
 	}
 
 	if channel != "live" {
 		extendedManifest.Title = fmt.Sprintf("%s: %s", strings.ToUpper(channel), extendedManifest.Title)
 	}
-
-	extendedManifest.Playground.Base = basePlayground.Playground
 
 	manifest := extendedManifest.Convert()
 
