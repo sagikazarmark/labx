@@ -115,7 +115,7 @@ type PlaygroundMachine struct {
 	Name         string               `yaml:"name" json:"name"`
 	Hostname     string               `yaml:"hostname,omitempty" json:"hostname,omitempty"`
 	IDEPath      string               `yaml:"idePath,omitempty" json:"idePath,omitempty"`
-	Users        []api.MachineUser    `yaml:"users" json:"users"`
+	Users        MachineUsers         `yaml:"users" json:"users"`
 	Kernel       string               `yaml:"kernel,omitempty" json:"kernel,omitempty"`
 	Drives       []api.MachineDrive   `yaml:"drives" json:"drives"`
 	Network      api.MachineNetwork   `yaml:"network" json:"network"`
@@ -169,12 +169,35 @@ func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
 
 	return api.PlaygroundMachine{
 		Name:         m.Name,
-		Users:        m.Users,
+		Users:        m.Users.Convert(),
 		Kernel:       m.Kernel,
 		Drives:       m.Drives,
 		Network:      m.Network,
 		Resources:    m.Resources,
 		StartupFiles: append(playgroundStartupFiles, m.StartupFiles.Convert()...),
+	}
+}
+
+type MachineUsers []MachineUser
+
+func (u MachineUsers) Convert() []api.MachineUser {
+	return lo.Map(u, func(user MachineUser, _ int) api.MachineUser {
+		return user.Convert()
+	})
+}
+
+type MachineUser struct {
+	Name        string `yaml:"name" json:"name"`
+	Default     bool   `yaml:"default,omitempty" json:"default,omitempty"`
+	Welcome     string `yaml:"welcome,omitempty" json:"welcome,omitempty"`
+	WelcomeFile string `yaml:"welcomeFile,omitempty" json:"welcomeFile,omitempty"`
+}
+
+func (u MachineUser) Convert() api.MachineUser {
+	return api.MachineUser{
+		Name:    u.Name,
+		Default: u.Default,
+		Welcome: u.Welcome,
 	}
 }
 

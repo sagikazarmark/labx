@@ -164,25 +164,29 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 		extendedManifest.Playground.BaseName = basePlayground.Name
 		extendedManifest.Playground.Base = basePlayground.Playground
 
-		for i, machine := range extendedManifest.Playground.Machines {
-			for j, startupFile := range machine.StartupFiles {
-				if startupFile.FromFile == "" {
-					continue
-				}
-
-				contentFile, err := fsys.Open(startupFile.FromFile)
-				if err != nil {
-					return core.ContentManifest{}, err
-				}
-
-				content, err := io.ReadAll(contentFile)
-				if err != nil {
-					return core.ContentManifest{}, err
-				}
-
-				extendedManifest.Playground.Machines[i].StartupFiles[j].Content = string(content)
-			}
+		machinesProcessor := MachinesProcessor{
+			MachineProcessor: MachineProcessor{
+				UserProcessor: MachineUserProcessor{
+					Fsys: fsys,
+				},
+				DriveProcessor: MachineDriveProcessor{
+					ContentKind:      extendedManifest.Kind,
+					ContentName:      "",
+					Channel:          channel,
+					DefaultImageRepo: defaultImageRepo,
+				},
+				StartupFileProcessor: MachineStartupFileProcessor{
+					Fsys: fsys,
+				},
+			},
 		}
+
+		machines, err := machinesProcessor.Process(extendedManifest.Playground.Machines)
+		if err != nil {
+			return core.ContentManifest{}, err
+		}
+
+		extendedManifest.Playground.Machines = machines
 	}
 
 	if channel != "live" {

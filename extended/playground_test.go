@@ -23,7 +23,7 @@ func TestPlaygroundMachine_Hostname(t *testing.T) {
 	extendedManifest := extended.PlaygroundMachine{
 		Name:         "test",
 		Hostname:     hostname,
-		Users:        []api.MachineUser{},
+		Users:        extended.MachineUsers{},
 		StartupFiles: extended.MachineStartupFiles{startupFile},
 	}
 

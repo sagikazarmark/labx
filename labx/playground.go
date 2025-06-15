@@ -3,17 +3,13 @@ package labx
 import (
 	"bytes"
 	"errors"
-	"fmt"
-	"io"
 	"io/fs"
 	"os/exec"
-	"strings"
 
 	"github.com/goccy/go-yaml"
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
 	"github.com/sagikazarmark/labx/extended"
-	"github.com/samber/lo"
 )
 
 func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
@@ -32,78 +28,38 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 		return api.PlaygroundManifest{}, err
 	}
 
-	hf, err := hasFiles(fsys, content.KindPlayground)
-	if err != nil {
-		return api.PlaygroundManifest{}, err
-	}
-
 	basePlayground, err := getPlaygroundManifest(extendedManifest.Base)
 	if err != nil {
 		return api.PlaygroundManifest{}, err
 	}
 
-	if hf {
-		machines := lo.Map(extendedManifest.Playground.Machines, func(machine extended.PlaygroundMachine, _ int) string {
-			return machine.Name
-		})
-
-		if len(machines) == 0 {
-			machines = lo.Map(basePlayground.Playground.Machines, func(machine api.PlaygroundMachine, _ int) string {
-				return machine.Name
-			})
-		}
-
-		const name = "init_files"
-
-		extendedManifest.Playground.InitTasks[name] = extended.InitTask{
-			Name:    name,
-			Machine: machines,
-			Init:    true,
-			User:    extended.StringList{"root"},
-			Run:     createDownloadScript(content.KindPlayground),
-		}
-	}
-
-	if channel != "live" {
-		extendedManifest.Title = fmt.Sprintf("%s: %s", strings.ToUpper(channel), extendedManifest.Title)
-	}
-
-	channelData, ok := extendedManifest.Channels[channel]
-	if !ok {
-		return api.PlaygroundManifest{}, errors.New("missing channel data: " + channel)
-	}
-
-	extendedManifest.Name = channelData.Name
-
-	if channelData.Public {
-		extendedManifest.Playground.AccessControl = api.PlaygroundAccessControl{
-			CanList:  []string{"anyone"},
-			CanRead:  []string{"anyone"},
-			CanStart: []string{"anyone"},
-		}
-	}
-
 	extendedManifest.Playground.BaseName = basePlayground.Name
 	extendedManifest.Playground.Base = basePlayground.Playground
 
-	for i, machine := range extendedManifest.Playground.Machines {
-		for j, startupFile := range machine.StartupFiles {
-			if startupFile.FromFile == "" {
-				continue
-			}
+	playgroundProcessor := PlaygroundProcessor{
+		Channel: channel,
+		Fsys:    fsys,
+		MachinesProcessor: MachinesProcessor{
+			MachineProcessor: MachineProcessor{
+				UserProcessor: MachineUserProcessor{
+					Fsys: fsys,
+				},
+				DriveProcessor: MachineDriveProcessor{
+					ContentKind:      content.KindPlayground,
+					ContentName:      extendedManifest.Name,
+					Channel:          channel,
+					DefaultImageRepo: defaultImageRepo,
+				},
+				StartupFileProcessor: MachineStartupFileProcessor{
+					Fsys: fsys,
+				},
+			},
+		},
+	}
 
-			contentFile, err := fsys.Open(startupFile.FromFile)
-			if err != nil {
-				return api.PlaygroundManifest{}, err
-			}
-
-			content, err := io.ReadAll(contentFile)
-			if err != nil {
-				return api.PlaygroundManifest{}, err
-			}
-
-			extendedManifest.Playground.Machines[i].StartupFiles[j].Content = string(content)
-		}
+	extendedManifest, err = playgroundProcessor.Process(extendedManifest)
+	if err != nil {
+		return api.PlaygroundManifest{}, err
 	}
 
 	manifest := extendedManifest.Convert()
