@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
 	"github.com/sagikazarmark/labx/extended"
@@ -103,6 +105,29 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 			}
 
 			extendedManifest.Playground.Machines[i].StartupFiles[j].Content = string(content)
+		}
+
+		for j, drive := range machine.Drives {
+			if !strings.HasPrefix(drive.Source, "oci://") {
+				continue
+			}
+
+			ref, err := name.ParseReference(strings.TrimPrefix(drive.Source, "oci://"))
+			if err != nil {
+				return api.PlaygroundManifest{}, err
+			}
+
+			if _, ok := ref.(name.Digest); ok {
+				// Already pinned to a digest
+				continue
+			}
+
+			desc, err := remote.Get(ref)
+			if err != nil {
+				return api.PlaygroundManifest{}, err
+			}
+
+			extendedManifest.Playground.Machines[i].Drives[j].Source = fmt.Sprintf("%s@%s", ref.String(), desc.Digest.String())
 		}
 	}
 

@@ -11,6 +11,8 @@ import (
 	"github.com/go-sprout/sprout"
 	sproutstrings "github.com/go-sprout/sprout/registry/strings"
 	"github.com/goccy/go-yaml"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
 	"github.com/sagikazarmark/labx/core"
@@ -181,6 +183,29 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 				}
 
 				extendedManifest.Playground.Machines[i].StartupFiles[j].Content = string(content)
+			}
+
+			for j, drive := range machine.Drives {
+				if !strings.HasPrefix(drive.Source, "oci://") {
+					continue
+				}
+
+				ref, err := name.ParseReference(strings.TrimPrefix(drive.Source, "oci://"))
+				if err != nil {
+					return core.ContentManifest{}, err
+				}
+
+				if _, ok := ref.(name.Digest); ok {
+					// Already pinned to a digest
+					continue
+				}
+
+				desc, err := remote.Get(ref)
+				if err != nil {
+					return core.ContentManifest{}, err
+				}
+
+				extendedManifest.Playground.Machines[i].Drives[j].Source = fmt.Sprintf("%s@%s", ref.String(), desc.Digest.String())
 			}
 		}
 	}

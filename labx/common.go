@@ -13,7 +13,7 @@ const betaNotice = `::remark-box
 kind: warning
 ---
 
-⚠️ This content is marked as **beta**, meaning it’s unfinished or still in progress and may change significantly.
+⚠️ This content is marked as **beta**, meaning it's unfinished or still in progress and may change significantly.
 ::
 
 `
