@@ -11,8 +11,6 @@ import (
 	"github.com/go-sprout/sprout"
 	sproutstrings "github.com/go-sprout/sprout/registry/strings"
 	"github.com/goccy/go-yaml"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
 	"github.com/sagikazarmark/labx/core"
@@ -166,52 +164,12 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 		extendedManifest.Playground.BaseName = basePlayground.Name
 		extendedManifest.Playground.Base = basePlayground.Playground
 
-		for i, machine := range extendedManifest.Playground.Machines {
-			for j, startupFile := range machine.StartupFiles {
-				if startupFile.FromFile == "" {
-					continue
-				}
-
-				contentFile, err := fsys.Open(startupFile.FromFile)
-				if err != nil {
-					return core.ContentManifest{}, err
-				}
-
-				content, err := io.ReadAll(contentFile)
-				if err != nil {
-					return core.ContentManifest{}, err
-				}
-
-				extendedManifest.Playground.Machines[i].StartupFiles[j].Content = string(content)
-			}
-
-			for j, drive := range machine.Drives {
-				if !strings.HasPrefix(drive.Source, "oci://") {
-					continue
-				}
-
-				source := drive.Source
-
-				source = strings.ReplaceAll(source, "__CHANNEL__", channel)
-
-				ref, err := name.ParseReference(strings.TrimPrefix(source, "oci://"))
-				if err != nil {
-					return core.ContentManifest{}, err
-				}
-
-				if _, ok := ref.(name.Digest); ok {
-					// Already pinned to a digest
-					continue
-				}
-
-				desc, err := remote.Get(ref)
-				if err != nil {
-					return core.ContentManifest{}, err
-				}
-
-				extendedManifest.Playground.Machines[i].Drives[j].Source = fmt.Sprintf("%s@%s", ref.String(), desc.Digest.String())
-			}
+		machines, err := processMachines(fsys, channel, extendedManifest.Playground.Machines)
+		if err != nil {
+			return core.ContentManifest{}, err
 		}
+
+		extendedManifest.Playground.Machines = machines
 	}
 
 	if channel != "live" {
