@@ -10,7 +10,6 @@ import (
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
 	"github.com/sagikazarmark/labx/extended"
-	"github.com/samber/lo"
 )
 
 func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
@@ -29,36 +28,9 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 		return api.PlaygroundManifest{}, err
 	}
 
-	hf, err := hasFiles(fsys, content.KindPlayground)
-	if err != nil {
-		return api.PlaygroundManifest{}, err
-	}
-
 	basePlayground, err := getPlaygroundManifest(extendedManifest.Base)
 	if err != nil {
 		return api.PlaygroundManifest{}, err
-	}
-
-	if hf {
-		machines := lo.Map(extendedManifest.Playground.Machines, func(machine extended.PlaygroundMachine, _ int) string {
-			return machine.Name
-		})
-
-		if len(machines) == 0 {
-			machines = lo.Map(basePlayground.Playground.Machines, func(machine api.PlaygroundMachine, _ int) string {
-				return machine.Name
-			})
-		}
-
-		const name = "init_files"
-
-		extendedManifest.Playground.InitTasks[name] = extended.InitTask{
-			Name:    name,
-			Machine: machines,
-			Init:    true,
-			User:    extended.StringList{"root"},
-			Run:     createDownloadScript(content.KindPlayground),
-		}
 	}
 
 	extendedManifest.Playground.BaseName = basePlayground.Name
