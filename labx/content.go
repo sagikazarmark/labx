@@ -164,7 +164,21 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 		extendedManifest.Playground.BaseName = basePlayground.Name
 		extendedManifest.Playground.Base = basePlayground.Playground
 
-		machines, err := processMachines(fsys, channel, "", extendedManifest.Kind, extendedManifest.Playground.Machines)
+		machinesProcessor := MachinesProcessor{
+			MachineProcessor: MachineProcessor{
+				StartupFileProcessor: MachineStartupFileProcessor{
+					Fsys: fsys,
+				},
+				DriveProcessor: MachineDriveProcessor{
+					ContentKind:      extendedManifest.Kind,
+					ContentName:      "",
+					Channel:          channel,
+					DefaultImageRepo: defaultImageRepo,
+				},
+			},
+		}
+
+		machines, err := machinesProcessor.Process(extendedManifest.Playground.Machines)
 		if err != nil {
 			return core.ContentManifest{}, err
 		}

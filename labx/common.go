@@ -3,14 +3,9 @@ package labx
 import (
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
-	"strings"
 
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/iximiuz/labctl/content"
-	"github.com/sagikazarmark/labx/extended"
 )
 
 const betaNotice = `::remark-box
@@ -62,59 +57,3 @@ func fileExists(fsys fs.FS, path string) (bool, error) {
 }
 
 const defaultImageRepo = "ghcr.io/sagikazarmark/iximiuz-labs"
-
-func processMachines(fsys fs.FS, channel string, contentName string, kind content.ContentKind, machines extended.PlaygroundMachines) (extended.PlaygroundMachines, error) {
-	for i, machine := range machines {
-		for j, startupFile := range machine.StartupFiles {
-			if startupFile.FromFile == "" {
-				continue
-			}
-
-			contentFile, err := fsys.Open(startupFile.FromFile)
-			if err != nil {
-				return nil, err
-			}
-
-			content, err := io.ReadAll(contentFile)
-			if err != nil {
-				return nil, err
-			}
-
-			machines[i].StartupFiles[j].Content = string(content)
-		}
-
-		for j, drive := range machine.Drives {
-			if !strings.HasPrefix(drive.Source, "oci://") {
-				continue
-			}
-
-			source := drive.Source
-			source = strings.TrimPrefix(source, "oci://")
-
-			if source == "" {
-				source = fmt.Sprintf("%s/%s/%s:%s", defaultImageRepo, kind.Plural(), contentName, channel)
-			}
-
-			source = strings.ReplaceAll(source, "__CHANNEL__", channel)
-
-			ref, err := name.ParseReference(source)
-			if err != nil {
-				return nil, err
-			}
-
-			if _, ok := ref.(name.Digest); ok {
-				// Already pinned to a digest
-				continue
-			}
-
-			desc, err := remote.Get(ref)
-			if err != nil {
-				return nil, err
-			}
-
-			machines[i].Drives[j].Source = fmt.Sprintf("oci://%s@%s", ref.String(), desc.Digest.String())
-		}
-	}
-
-	return machines, nil
-}

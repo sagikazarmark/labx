@@ -86,7 +86,21 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 	extendedManifest.Playground.BaseName = basePlayground.Name
 	extendedManifest.Playground.Base = basePlayground.Playground
 
-	machines, err := processMachines(fsys, channel, origName, content.KindPlayground, extendedManifest.Playground.Machines)
+	machinesProcessor := MachinesProcessor{
+		MachineProcessor: MachineProcessor{
+			StartupFileProcessor: MachineStartupFileProcessor{
+				Fsys: fsys,
+			},
+			DriveProcessor: MachineDriveProcessor{
+				ContentKind:      content.KindPlayground,
+				ContentName:      origName,
+				Channel:          channel,
+				DefaultImageRepo: defaultImageRepo,
+			},
+		},
+	}
+
+	machines, err := machinesProcessor.Process(extendedManifest.Playground.Machines)
 	if err != nil {
 		return api.PlaygroundManifest{}, err
 	}

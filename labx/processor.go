@@ -1,0 +1,163 @@
+package labx
+
+import (
+	"fmt"
+	"io"
+	"io/fs"
+	"strings"
+
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/iximiuz/labctl/api"
+	"github.com/iximiuz/labctl/content"
+	"github.com/sagikazarmark/labx/extended"
+)
+
+type MachinesProcessor struct {
+	MachineProcessor MachineProcessor
+}
+
+func (p MachinesProcessor) Process(machines []extended.PlaygroundMachine) ([]extended.PlaygroundMachine, error) {
+	machineProcessor := p.MachineProcessor
+
+	// Set a default drive size to make sure we don't exceed the limit
+	// This is best effort: you should set the size instead
+	if machineProcessor.DriveProcessor.DefaultSize == "" {
+		if len(machines) > 3 {
+			machineProcessor.DriveProcessor.DefaultSize = "30GiB"
+		}
+	}
+
+	for i, machine := range machines {
+		machine, err := machineProcessor.Process(machine)
+		if err != nil {
+			return nil, fmt.Errorf("processing machine %s: %w", machine.Name, err)
+		}
+
+		machines[i] = machine
+	}
+
+	return machines, nil
+}
+
+type MachineProcessor struct {
+	StartupFileProcessor MachineStartupFileProcessor
+	DriveProcessor       MachineDriveProcessor
+}
+
+func (p MachineProcessor) Process(machine extended.PlaygroundMachine) (extended.PlaygroundMachine, error) {
+	for i, startupFile := range machine.StartupFiles {
+		startupFile, err := p.StartupFileProcessor.Process(startupFile)
+		if err != nil {
+			return extended.PlaygroundMachine{}, fmt.Errorf("processing startup file %d: %w", i, err)
+		}
+
+		machine.StartupFiles[i] = startupFile
+	}
+
+	for i, drive := range machine.Drives {
+		drive, err := p.DriveProcessor.Process(drive)
+		if err != nil {
+			return extended.PlaygroundMachine{}, fmt.Errorf("processing drive %d: %w", i, err)
+		}
+
+		machine.Drives[i] = drive
+	}
+
+	return machine, nil
+}
+
+type MachineStartupFileProcessor struct {
+	Fsys fs.FS
+
+	DefaultOwner string
+	DefaultMode  string
+}
+
+func (p MachineStartupFileProcessor) Process(startupFile extended.MachineStartupFile) (extended.MachineStartupFile, error) {
+	if startupFile.FromFile != "" {
+		contentFile, err := p.Fsys.Open(startupFile.FromFile)
+		if err != nil {
+			return extended.MachineStartupFile{}, err
+		}
+
+		content, err := io.ReadAll(contentFile)
+		if err != nil {
+			return extended.MachineStartupFile{}, err
+		}
+
+		startupFile.Content = string(content)
+	}
+
+	if startupFile.Owner == "" {
+		startupFile.Owner = p.DefaultOwner
+	}
+
+	if startupFile.Mode == "" {
+		startupFile.Mode = p.DefaultMode
+	}
+
+	return startupFile, nil
+}
+
+type MachineDriveProcessor struct {
+	// TODO: this won' work for course modules and lessons
+	ContentKind content.ContentKind
+	ContentName string
+	Channel     string
+
+	// Use this image repository if the image is not specified.
+	DefaultImageRepo string
+
+	// Use this size if the size is missing from the drive.
+	DefaultSize string
+}
+
+func (p MachineDriveProcessor) Process(drive api.MachineDrive) (api.MachineDrive, error) {
+	source, err := p.processSource(drive.Source)
+	if err != nil {
+		return api.MachineDrive{}, err
+	}
+
+	drive.Source = source
+
+	if drive.Size == "" {
+		drive.Size = p.DefaultSize
+	}
+
+	return drive, nil
+}
+
+func (p MachineDriveProcessor) processSource(source string) (string, error) {
+	// Not an OCI source, stop processing
+	if !strings.HasPrefix(source, "oci://") {
+		return source, nil
+	}
+
+	source = strings.TrimPrefix(source, "oci://")
+
+	// Fallback to default source
+	if source == "" {
+		source = fmt.Sprintf("%s/%s/%s:%s", p.DefaultImageRepo, p.ContentKind.Plural(), p.ContentName, p.Channel)
+	}
+
+	// Replace channel placeholder
+	source = strings.ReplaceAll(source, "__CHANNEL__", p.Channel)
+
+	ref, err := name.ParseReference(source)
+	if err != nil {
+		return "", err
+	}
+
+	// Already pinned to a digest
+	if _, ok := ref.(name.Digest); ok {
+		return source, nil
+	}
+
+	desc, err := remote.Get(ref)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("oci://%s@%s", ref.String(), desc.Digest.String()), nil
+}
