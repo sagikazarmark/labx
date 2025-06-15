@@ -112,7 +112,11 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 				continue
 			}
 
-			ref, err := name.ParseReference(strings.TrimPrefix(drive.Source, "oci://"))
+			source := drive.Source
+
+			source = strings.ReplaceAll(source, "__CHANNEL__", channel)
+
+			ref, err := name.ParseReference(strings.TrimPrefix(source, "oci://"))
 			if err != nil {
 				return api.PlaygroundManifest{}, err
 			}
