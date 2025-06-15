@@ -108,18 +108,19 @@ func (p MachinesProcessor) Process(machines []extended.PlaygroundMachine) ([]ext
 }
 
 type MachineProcessor struct {
-	StartupFileProcessor MachineStartupFileProcessor
+	UserProcessor        MachineUserProcessor
 	DriveProcessor       MachineDriveProcessor
+	StartupFileProcessor MachineStartupFileProcessor
 }
 
 func (p MachineProcessor) Process(machine extended.PlaygroundMachine) (extended.PlaygroundMachine, error) {
-	for i, startupFile := range machine.StartupFiles {
-		startupFile, err := p.StartupFileProcessor.Process(startupFile)
+	for i, user := range machine.Users {
+		user, err := p.UserProcessor.Process(user)
 		if err != nil {
-			return extended.PlaygroundMachine{}, fmt.Errorf("processing startup file %d: %w", i, err)
+			return extended.PlaygroundMachine{}, fmt.Errorf("processing user %s: %w", user.Name, err)
 		}
 
-		machine.StartupFiles[i] = startupFile
+		machine.Users[i] = user
 	}
 
 	for i, drive := range machine.Drives {
@@ -131,40 +132,38 @@ func (p MachineProcessor) Process(machine extended.PlaygroundMachine) (extended.
 		machine.Drives[i] = drive
 	}
 
+	for i, startupFile := range machine.StartupFiles {
+		startupFile, err := p.StartupFileProcessor.Process(startupFile)
+		if err != nil {
+			return extended.PlaygroundMachine{}, fmt.Errorf("processing startup file %d: %w", i, err)
+		}
+
+		machine.StartupFiles[i] = startupFile
+	}
+
 	return machine, nil
 }
 
-type MachineStartupFileProcessor struct {
+type MachineUserProcessor struct {
 	Fsys fs.FS
-
-	DefaultOwner string
-	DefaultMode  string
 }
 
-func (p MachineStartupFileProcessor) Process(startupFile extended.MachineStartupFile) (extended.MachineStartupFile, error) {
-	if startupFile.FromFile != "" {
-		contentFile, err := p.Fsys.Open(startupFile.FromFile)
+func (p MachineUserProcessor) Process(user extended.MachineUser) (extended.MachineUser, error) {
+	if user.WelcomeFile != "" {
+		welcomeFile, err := p.Fsys.Open(user.WelcomeFile)
 		if err != nil {
-			return extended.MachineStartupFile{}, err
+			return extended.MachineUser{}, err
 		}
 
-		content, err := io.ReadAll(contentFile)
+		welcome, err := io.ReadAll(welcomeFile)
 		if err != nil {
-			return extended.MachineStartupFile{}, err
+			return extended.MachineUser{}, err
 		}
 
-		startupFile.Content = string(content)
+		user.Welcome = string(welcome)
 	}
 
-	if startupFile.Owner == "" {
-		startupFile.Owner = p.DefaultOwner
-	}
-
-	if startupFile.Mode == "" {
-		startupFile.Mode = p.DefaultMode
-	}
-
-	return startupFile, nil
+	return user, nil
 }
 
 type MachineDriveProcessor struct {
@@ -227,4 +226,37 @@ func (p MachineDriveProcessor) processSource(source string) (string, error) {
 	}
 
 	return fmt.Sprintf("oci://%s@%s", ref.String(), desc.Digest.String()), nil
+}
+
+type MachineStartupFileProcessor struct {
+	Fsys fs.FS
+
+	DefaultOwner string
+	DefaultMode  string
+}
+
+func (p MachineStartupFileProcessor) Process(startupFile extended.MachineStartupFile) (extended.MachineStartupFile, error) {
+	if startupFile.FromFile != "" {
+		contentFile, err := p.Fsys.Open(startupFile.FromFile)
+		if err != nil {
+			return extended.MachineStartupFile{}, err
+		}
+
+		content, err := io.ReadAll(contentFile)
+		if err != nil {
+			return extended.MachineStartupFile{}, err
+		}
+
+		startupFile.Content = string(content)
+	}
+
+	if startupFile.Owner == "" {
+		startupFile.Owner = p.DefaultOwner
+	}
+
+	if startupFile.Mode == "" {
+		startupFile.Mode = p.DefaultMode
+	}
+
+	return startupFile, nil
 }

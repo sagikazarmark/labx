@@ -166,7 +166,7 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 
 		machinesProcessor := MachinesProcessor{
 			MachineProcessor: MachineProcessor{
-				StartupFileProcessor: MachineStartupFileProcessor{
+				UserProcessor: MachineUserProcessor{
 					Fsys: fsys,
 				},
 				DriveProcessor: MachineDriveProcessor{
@@ -174,6 +174,9 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 					ContentName:      "",
 					Channel:          channel,
 					DefaultImageRepo: defaultImageRepo,
+				},
+				StartupFileProcessor: MachineStartupFileProcessor{
+					Fsys: fsys,
 				},
 			},
 		}

@@ -41,7 +41,7 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 		Fsys:    fsys,
 		MachinesProcessor: MachinesProcessor{
 			MachineProcessor: MachineProcessor{
-				StartupFileProcessor: MachineStartupFileProcessor{
+				UserProcessor: MachineUserProcessor{
 					Fsys: fsys,
 				},
 				DriveProcessor: MachineDriveProcessor{
@@ -49,6 +49,9 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 					ContentName:      extendedManifest.Name,
 					Channel:          channel,
 					DefaultImageRepo: defaultImageRepo,
+				},
+				StartupFileProcessor: MachineStartupFileProcessor{
+					Fsys: fsys,
 				},
 			},
 		},
