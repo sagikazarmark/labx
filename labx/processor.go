@@ -1,6 +1,7 @@
 package labx
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -12,6 +13,42 @@ import (
 	"github.com/iximiuz/labctl/content"
 	"github.com/sagikazarmark/labx/extended"
 )
+
+type PlaygroundProcessor struct {
+	Channel string
+
+	MachinesProcessor MachinesProcessor
+}
+
+func (p PlaygroundProcessor) Process(playground extended.PlaygroundManifest) (extended.PlaygroundManifest, error) {
+	if p.Channel != "live" {
+		playground.Title = fmt.Sprintf("%s: %s", strings.ToUpper(p.Channel), playground.Title)
+	}
+
+	channel, ok := playground.Channels[p.Channel]
+	if !ok {
+		return extended.PlaygroundManifest{}, errors.New("missing channel data: " + p.Channel)
+	}
+
+	playground.Name = channel.Name
+
+	if channel.Public {
+		playground.Playground.AccessControl = api.PlaygroundAccessControl{
+			CanList:  []string{"anyone"},
+			CanRead:  []string{"anyone"},
+			CanStart: []string{"anyone"},
+		}
+	}
+
+	machines, err := p.MachinesProcessor.Process(playground.Playground.Machines)
+	if err != nil {
+		return extended.PlaygroundManifest{}, err
+	}
+
+	playground.Playground.Machines = machines
+
+	return playground, nil
+}
 
 type MachinesProcessor struct {
 	MachineProcessor MachineProcessor

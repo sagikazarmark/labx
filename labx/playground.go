@@ -3,10 +3,8 @@ package labx
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io/fs"
 	"os/exec"
-	"strings"
 
 	"github.com/goccy/go-yaml"
 	"github.com/iximiuz/labctl/api"
@@ -63,49 +61,30 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 		}
 	}
 
-	if channel != "live" {
-		extendedManifest.Title = fmt.Sprintf("%s: %s", strings.ToUpper(channel), extendedManifest.Title)
-	}
-
-	channelData, ok := extendedManifest.Channels[channel]
-	if !ok {
-		return api.PlaygroundManifest{}, errors.New("missing channel data: " + channel)
-	}
-
-	origName := extendedManifest.Name
-	extendedManifest.Name = channelData.Name
-
-	if channelData.Public {
-		extendedManifest.Playground.AccessControl = api.PlaygroundAccessControl{
-			CanList:  []string{"anyone"},
-			CanRead:  []string{"anyone"},
-			CanStart: []string{"anyone"},
-		}
-	}
-
 	extendedManifest.Playground.BaseName = basePlayground.Name
 	extendedManifest.Playground.Base = basePlayground.Playground
 
-	machinesProcessor := MachinesProcessor{
-		MachineProcessor: MachineProcessor{
-			StartupFileProcessor: MachineStartupFileProcessor{
-				Fsys: fsys,
-			},
-			DriveProcessor: MachineDriveProcessor{
-				ContentKind:      content.KindPlayground,
-				ContentName:      origName,
-				Channel:          channel,
-				DefaultImageRepo: defaultImageRepo,
+	playgroundProcessor := PlaygroundProcessor{
+		Channel: channel,
+		MachinesProcessor: MachinesProcessor{
+			MachineProcessor: MachineProcessor{
+				StartupFileProcessor: MachineStartupFileProcessor{
+					Fsys: fsys,
+				},
+				DriveProcessor: MachineDriveProcessor{
+					ContentKind:      content.KindPlayground,
+					ContentName:      extendedManifest.Name,
+					Channel:          channel,
+					DefaultImageRepo: defaultImageRepo,
+				},
 			},
 		},
 	}
 
-	machines, err := machinesProcessor.Process(extendedManifest.Playground.Machines)
+	extendedManifest, err = playgroundProcessor.Process(extendedManifest)
 	if err != nil {
 		return api.PlaygroundManifest{}, err
 	}
-
-	extendedManifest.Playground.Machines = machines
 
 	manifest := extendedManifest.Convert()
 
