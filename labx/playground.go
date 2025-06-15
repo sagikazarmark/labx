@@ -38,6 +38,7 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 
 	playgroundProcessor := PlaygroundProcessor{
 		Channel: channel,
+		Fsys:    fsys,
 		MachinesProcessor: MachinesProcessor{
 			MachineProcessor: MachineProcessor{
 				StartupFileProcessor: MachineStartupFileProcessor{
