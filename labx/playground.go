@@ -72,6 +72,7 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 		return api.PlaygroundManifest{}, errors.New("missing channel data: " + channel)
 	}
 
+	origName := extendedManifest.Name
 	extendedManifest.Name = channelData.Name
 
 	if channelData.Public {
@@ -85,7 +86,7 @@ func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 	extendedManifest.Playground.BaseName = basePlayground.Name
 	extendedManifest.Playground.Base = basePlayground.Playground
 
-	machines, err := processMachines(fsys, channel, extendedManifest.Playground.Machines)
+	machines, err := processMachines(fsys, channel, origName, content.KindPlayground, extendedManifest.Playground.Machines)
 	if err != nil {
 		return api.PlaygroundManifest{}, err
 	}

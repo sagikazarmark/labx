@@ -61,7 +61,9 @@ func fileExists(fsys fs.FS, path string) (bool, error) {
 	return true, nil
 }
 
-func processMachines(fsys fs.FS, channel string, machines extended.PlaygroundMachines) (extended.PlaygroundMachines, error) {
+const defaultImageRepo = "ghcr.io/sagikazarmark/iximiuz-labs"
+
+func processMachines(fsys fs.FS, channel string, contentName string, kind content.ContentKind, machines extended.PlaygroundMachines) (extended.PlaygroundMachines, error) {
 	for i, machine := range machines {
 		for j, startupFile := range machine.StartupFiles {
 			if startupFile.FromFile == "" {
@@ -87,10 +89,15 @@ func processMachines(fsys fs.FS, channel string, machines extended.PlaygroundMac
 			}
 
 			source := drive.Source
+			source = strings.TrimPrefix(source, "oci://")
+
+			if source == "" {
+				source = fmt.Sprintf("%s/%s/%s:%s", defaultImageRepo, kind.Plural(), contentName, channel)
+			}
 
 			source = strings.ReplaceAll(source, "__CHANNEL__", channel)
 
-			ref, err := name.ParseReference(strings.TrimPrefix(source, "oci://"))
+			ref, err := name.ParseReference(source)
 			if err != nil {
 				return nil, err
 			}
@@ -105,7 +112,7 @@ func processMachines(fsys fs.FS, channel string, machines extended.PlaygroundMac
 				return nil, err
 			}
 
-			machines[i].Drives[j].Source = fmt.Sprintf("%s@%s", ref.String(), desc.Digest.String())
+			machines[i].Drives[j].Source = fmt.Sprintf("oci://%s@%s", ref.String(), desc.Digest.String())
 		}
 	}
 
