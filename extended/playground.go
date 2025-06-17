@@ -67,48 +67,19 @@ func (s PlaygroundSpec) convertMachines() []api.PlaygroundMachine {
 		return s.Machines.Convert()
 	}
 
-	parentMachines := lo.SliceToMap(s.Base.Machines, func(machine api.PlaygroundMachine) (string, api.PlaygroundMachine) {
-		return machine.Name, machine
-	})
-
-	// Make sure to include startup files, users and resources from parent playground
-	return lo.Map(s.Machines.Convert(), func(machine api.PlaygroundMachine, _ int) api.PlaygroundMachine {
-		parentMachine := parentMachines[machine.Name]
-
-		if len(machine.Users) == 0 {
-			machine.Users = slices.Clone(parentMachine.Users)
-		}
-
-		if s.Welcome != "" {
-			for i, user := range machine.Users {
-				if !user.Default {
-					continue
-				}
-
-				if user.Welcome == "" || user.Welcome == "-" {
-					machine.Users[i].Welcome = s.Welcome
+	// Apply welcome message to default users if specified
+	machines := s.Machines.Convert()
+	if s.Welcome != "" {
+		for i, machine := range machines {
+			for j, user := range machine.Users {
+				if user.Default && (user.Welcome == "" || user.Welcome == "-") {
+					machines[i].Users[j].Welcome = s.Welcome
 				}
 			}
 		}
+	}
 
-		if len(machine.Drives) == 0 {
-			machine.Drives = parentMachine.Drives
-		}
-
-		if len(machine.Network.Interfaces) == 0 {
-			machine.Network.Interfaces = parentMachine.Network.Interfaces
-		}
-
-		if machine.Resources.CPUCount == 0 {
-			machine.Resources.CPUCount = parentMachine.Resources.CPUCount
-		}
-
-		if machine.Resources.RAMSize == "" {
-			machine.Resources.RAMSize = parentMachine.Resources.RAMSize
-		}
-
-		return machine
-	})
+	return machines
 }
 
 type PlaygroundMachines []PlaygroundMachine

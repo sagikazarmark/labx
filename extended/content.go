@@ -152,38 +152,24 @@ func (s ContentPlaygroundSpec) convertMachines() []api.PlaygroundMachine {
 		return machine.Name, machine
 	})
 
-	// Make sure to include startup files, users and resources from parent playground
-	return lo.Map(s.Machines.Convert(), func(machine api.PlaygroundMachine, _ int) api.PlaygroundMachine {
+	// Make sure to include startup files from parent playground and apply welcome message
+	machines := s.Machines.Convert()
+	for i, machine := range machines {
 		parentMachine := parentMachines[machine.Name]
 
-		machine.StartupFiles = append(slices.Clone(parentMachine.StartupFiles), machine.StartupFiles...)
+		machines[i].StartupFiles = append(slices.Clone(parentMachine.StartupFiles), machine.StartupFiles...)
 
-		if len(machine.Users) == 0 {
-			machine.Users = slices.Clone(parentMachine.Users)
-		}
-
+		// Apply welcome message to default users if specified
 		if s.Welcome != "" {
-			for i, user := range machine.Users {
-				if !user.Default {
-					continue
-				}
-
-				if user.Welcome == "" || user.Welcome == "-" {
-					machine.Users[i].Welcome = s.Welcome
+			for j, user := range machine.Users {
+				if user.Default && (user.Welcome == "" || user.Welcome == "-") {
+					machines[i].Users[j].Welcome = s.Welcome
 				}
 			}
 		}
+	}
 
-		if machine.Resources.CPUCount == 0 {
-			machine.Resources.CPUCount = parentMachine.Resources.CPUCount
-		}
-
-		if machine.Resources.RAMSize == "" {
-			machine.Resources.RAMSize = parentMachine.Resources.RAMSize
-		}
-
-		return machine
-	})
+	return machines
 }
 
 type Task struct {
