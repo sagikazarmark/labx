@@ -131,19 +131,6 @@ type PlaygroundMachine struct {
 	StartupFiles MachineStartupFiles  `yaml:"startupFiles" json:"startupFiles"`
 }
 
-const codeServerUnit = `[Unit]
-Description=code-server
-
-[Service]
-Type=exec
-Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/usr/local/go/bin:/home/laborant/go/bin" "HOME=/home/laborant"
-User=laborant
-ExecStart=/usr/bin/code-server --bind-addr=127.0.0.1:50062 --auth none --disable-telemetry --disable-update-check --disable-workspace-trust --disable-getting-started-override --app-name="iximiuz Labs" $CODE_SERVER_PATH
-Restart=on-failure
-Environment=CODE_SERVER_PATH=/home/laborant
-Environment=CODE_SERVER_PATH=%s
-`
-
 func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
 	var playgroundStartupFiles []api.MachineStartupFile
 
@@ -165,14 +152,14 @@ func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
 	}
 
 	if m.IDEPath != "" {
-		unit := api.MachineStartupFile{
-			Path:    "/usr/lib/systemd/system/code-server.service",
-			Content: fmt.Sprintf(codeServerUnit, m.IDEPath),
+		codeServerEnv := api.MachineStartupFile{
+			Path:    "/etc/default/code-server",
+			Content: fmt.Sprintf("CODE_SERVER_PATH=%s\n", m.IDEPath),
 			Owner:   "root:root",
 			Mode:    "644",
 		}
 
-		playgroundStartupFiles = append(playgroundStartupFiles, unit)
+		playgroundStartupFiles = append(playgroundStartupFiles, codeServerEnv)
 	}
 
 	return api.PlaygroundMachine{
