@@ -91,6 +91,14 @@ func (s PlaygroundSpec) convertMachines() []api.PlaygroundMachine {
 			}
 		}
 
+		if len(machine.Drives) == 0 {
+			machine.Drives = parentMachine.Drives
+		}
+
+		if len(machine.Network.Interfaces) == 0 {
+			machine.Network.Interfaces = parentMachine.Network.Interfaces
+		}
+
 		if machine.Resources.CPUCount == 0 {
 			machine.Resources.CPUCount = parentMachine.Resources.CPUCount
 		}
