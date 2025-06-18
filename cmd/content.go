@@ -1,16 +1,15 @@
 package cmd
 
 import (
-	"os"
-
 	"github.com/spf13/cobra"
 
 	"github.com/sagikazarmark/labx/labx"
 )
 
+const defaultOutput = "dist"
+
 type contentOptions struct {
-	path    string
-	channel string
+	commonOptions
 }
 
 func NewContentCommand() *cobra.Command {
@@ -26,30 +25,18 @@ func NewContentCommand() *cobra.Command {
 
 	flags := cmd.Flags()
 
-	flags.StringVar(
-		&opts.path,
-		"path",
-		".",
-		`Path to load manifest from`,
-	)
-
-	flags.StringVar(
-		&opts.channel,
-		"channel",
-		"dev",
-		`Which channel to push the playground to`,
-	)
+	addCommonFlags(flags, &opts.commonOptions)
 
 	return cmd
 }
 
 func runContent(opts *contentOptions) error {
-	root, err := os.OpenRoot(opts.path)
+	root, outputRoot, err := setupFsys(&opts.commonOptions)
 	if err != nil {
 		return err
 	}
 
-	err = labx.Content(root, opts.channel)
+	err = labx.Content(root, outputRoot, opts.channel)
 	if err != nil {
 		return err
 	}

@@ -21,19 +21,13 @@ import (
 	"github.com/sagikazarmark/labx/pkg/sproutx"
 )
 
-func Content(root *os.Root, channel string) error {
+func Content(root *os.Root, output *os.Root, channel string) error {
 	manifest, err := convertContentManifest(root.FS(), channel)
 	if err != nil {
 		return err
 	}
 
-	// Create dist directory and root
-	dist, err := root.OpenRoot("dist")
-	if err != nil {
-		return err
-	}
-
-	indexFile, err := dist.Create("index.md")
+	indexFile, err := output.Create("index.md")
 	if err != nil {
 		return err
 	}
@@ -70,12 +64,12 @@ func Content(root *os.Root, channel string) error {
 	// Handle content-specific rendering
 	switch manifest.Kind {
 	case content.KindChallenge:
-		err := renderChallenge(root, dist, tpl)
+		err := renderChallenge(root, output, tpl)
 		if err != nil {
 			return err
 		}
 	case content.KindCourse:
-		err := renderCourse(root, dist, channel)
+		err := renderCourse(root, output, channel)
 		if err != nil {
 			return err
 		}
@@ -181,14 +175,14 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 }
 
 // renderChallenge handles challenge-specific rendering
-func renderChallenge(root *os.Root, dist *os.Root, tpl *template.Template) error {
+func renderChallenge(root *os.Root, output *os.Root, tpl *template.Template) error {
 	hasSolution, err := fileExists(root.FS(), "solution.md")
 	if err != nil {
 		return err
 	}
 
 	if hasSolution {
-		solutionFile, err := dist.Create("solution.md")
+		solutionFile, err := output.Create("solution.md")
 		if err != nil {
 			return err
 		}
@@ -204,7 +198,7 @@ func renderChallenge(root *os.Root, dist *os.Root, tpl *template.Template) error
 }
 
 // renderCourse handles rendering for both simple and modular courses
-func renderCourse(root *os.Root, dist *os.Root, channel string) error {
+func renderCourse(root *os.Root, output *os.Root, channel string) error {
 	fsys := root.FS()
 
 	// Check if this is a simple course (has lessons directory)
@@ -225,16 +219,16 @@ func renderCourse(root *os.Root, dist *os.Root, channel string) error {
 	}
 
 	if hasLessons {
-		return renderSimpleCourse(root, dist, channel)
+		return renderSimpleCourse(root, output, channel)
 	} else if hasModules {
-		return renderModularCourse(root, dist, channel)
+		return renderModularCourse(root, output, channel)
 	}
 
 	return nil
 }
 
 // renderSimpleCourse handles simple courses with a lessons directory
-func renderSimpleCourse(root *os.Root, dist *os.Root, channel string) error {
+func renderSimpleCourse(root *os.Root, output *os.Root, channel string) error {
 	fsys := root.FS()
 
 	lessons, err := fs.ReadDir(fsys, "lessons")
@@ -250,7 +244,7 @@ func renderSimpleCourse(root *os.Root, dist *os.Root, channel string) error {
 		lessonName := lesson.Name()
 		lessonPath := "lessons/" + lessonName
 
-		err = renderLesson(root, dist, lessonPath, lessonName, channel)
+		err = renderLesson(root, output, lessonPath, lessonName, channel)
 		if err != nil {
 			return fmt.Errorf("render lesson %s: %w", lessonName, err)
 		}
@@ -260,7 +254,7 @@ func renderSimpleCourse(root *os.Root, dist *os.Root, channel string) error {
 }
 
 // renderModularCourse handles modular courses with a modules directory
-func renderModularCourse(root *os.Root, dist *os.Root, channel string) error {
+func renderModularCourse(root *os.Root, output *os.Root, channel string) error {
 	fsys := root.FS()
 
 	modules, err := fs.ReadDir(fsys, "modules")
@@ -277,7 +271,7 @@ func renderModularCourse(root *os.Root, dist *os.Root, channel string) error {
 		modulePath := "modules/" + moduleName
 
 		// Process module manifest
-		err = renderModuleManifest(root, dist, modulePath, moduleName)
+		err = renderModuleManifest(root, output, modulePath, moduleName)
 		if err != nil {
 			return fmt.Errorf("render module manifest %s: %w", moduleName, err)
 		}
@@ -297,7 +291,7 @@ func renderModularCourse(root *os.Root, dist *os.Root, channel string) error {
 			lessonPath := modulePath + "/" + lessonName
 			outputPath := moduleName + "/" + lessonName
 
-			err = renderLesson(root, dist, lessonPath, outputPath, channel)
+			err = renderLesson(root, output, lessonPath, outputPath, channel)
 			if err != nil {
 				return fmt.Errorf(
 					"render lesson %s in module %s: %w",
@@ -313,7 +307,7 @@ func renderModularCourse(root *os.Root, dist *os.Root, channel string) error {
 }
 
 // renderModuleManifest processes a module's manifest.yaml and creates 00-index.md
-func renderModuleManifest(root *os.Root, dist *os.Root, modulePath, moduleName string) error {
+func renderModuleManifest(root *os.Root, output *os.Root, modulePath, moduleName string) error {
 	fsys := root.FS()
 
 	manifestPath := modulePath + "/manifest.yaml"
@@ -331,12 +325,12 @@ func renderModuleManifest(root *os.Root, dist *os.Root, modulePath, moduleName s
 	outputPath := moduleName + "/00-index.md"
 
 	// Create module directory first
-	err = dist.Mkdir(moduleName, 0o755)
+	err = output.Mkdir(moduleName, 0o755)
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
 
-	outputFile, err := dist.Create(outputPath)
+	outputFile, err := output.Create(outputPath)
 	if err != nil {
 		return err
 	}
@@ -352,17 +346,17 @@ func renderModuleManifest(root *os.Root, dist *os.Root, modulePath, moduleName s
 }
 
 // renderLesson processes a lesson directory and renders its content
-func renderLesson(root *os.Root, dist *os.Root, lessonPath, outputPath, channel string) error {
+func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath, channel string) error {
 	fsys := root.FS()
 
 	// Create lesson directory first
-	err := dist.Mkdir(outputPath, 0o755)
+	err := output.Mkdir(outputPath, 0o755)
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
 
 	// Process lesson manifest through the same pipeline as other manifests
-	err = renderLessonManifest(root, dist, lessonPath, outputPath, channel)
+	err = renderLessonManifest(root, output, lessonPath, outputPath, channel)
 	if err != nil {
 		return err
 	}
@@ -389,7 +383,7 @@ func renderLesson(root *os.Root, dist *os.Root, lessonPath, outputPath, channel 
 		if file.IsDir() {
 			// Handle static directory
 			if file.Name() == "static" {
-				err = copyStaticFiles(root, dist, lessonPath+"/static", outputPath+"/__static__")
+				err = copyStaticFiles(root, output, lessonPath+"/static", outputPath+"/__static__")
 				if err != nil {
 					return fmt.Errorf("copy static files: %w", err)
 				}
@@ -401,7 +395,7 @@ func renderLesson(root *os.Root, dist *os.Root, lessonPath, outputPath, channel 
 		if strings.HasSuffix(fileName, ".md") && fileName != "index.md" {
 			outputFilePath := outputPath + "/" + fileName
 
-			outputFile, err := dist.Create(outputFilePath)
+			outputFile, err := output.Create(outputFilePath)
 			if err != nil {
 				return fmt.Errorf("create output file %s: %w", outputFilePath, err)
 			}
@@ -420,7 +414,7 @@ func renderLesson(root *os.Root, dist *os.Root, lessonPath, outputPath, channel 
 // renderLessonManifest processes a lesson's manifest.yaml and creates index.md
 func renderLessonManifest(
 	root *os.Root,
-	dist *os.Root,
+	output *os.Root,
 	lessonPath, outputPath, channel string,
 ) error {
 	// Create a sub-filesystem for the lesson directory
@@ -436,7 +430,7 @@ func renderLessonManifest(
 	}
 
 	// Create the output index.md file
-	outputFile, err := dist.Create(outputPath + "/index.md")
+	outputFile, err := output.Create(outputPath + "/index.md")
 	if err != nil {
 		return err
 	}
@@ -457,11 +451,11 @@ func renderLessonManifest(
 }
 
 // copyStaticFiles copies static files from source to destination
-func copyStaticFiles(root *os.Root, dist *os.Root, sourcePath, destPath string) error {
+func copyStaticFiles(root *os.Root, output *os.Root, sourcePath, destPath string) error {
 	fsys := root.FS()
 
 	// Create the parent static directory first
-	err := dist.Mkdir(destPath, 0o755)
+	err := output.Mkdir(destPath, 0o755)
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
@@ -482,7 +476,7 @@ func copyStaticFiles(root *os.Root, dist *os.Root, sourcePath, destPath string) 
 
 		if d.IsDir() {
 			// Create directory in destination
-			err = dist.Mkdir(outputPath, 0o755)
+			err = output.Mkdir(outputPath, 0o755)
 			if err != nil && !os.IsExist(err) {
 				return err
 			}
@@ -496,7 +490,7 @@ func copyStaticFiles(root *os.Root, dist *os.Root, sourcePath, destPath string) 
 		}
 		defer sourceFile.Close()
 
-		destFile, err := dist.Create(outputPath)
+		destFile, err := output.Create(outputPath)
 		if err != nil {
 			return err
 		}
