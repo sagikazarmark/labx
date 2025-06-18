@@ -1,10 +1,6 @@
 package cmd
 
 import (
-	"io"
-	"os"
-	"strings"
-
 	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 
@@ -12,8 +8,7 @@ import (
 )
 
 type playgroundOptions struct {
-	path    string
-	channel string
+	commonOptions
 }
 
 func NewPlaygroundCommand() *cobra.Command {
@@ -23,46 +18,41 @@ func NewPlaygroundCommand() *cobra.Command {
 		Use:   "playground",
 		Short: "Generate playground content",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runPlayground(&opts, cmd.OutOrStdout())
+			return runPlayground(&opts)
 		},
 	}
 
 	flags := cmd.Flags()
 
-	flags.StringVar(
-		&opts.path,
-		"path",
-		".",
-		`Path to load manifest from`,
-	)
-
-	flags.StringVar(
-		&opts.channel,
-		"channel",
-		"dev",
-		`Which channel to push the playground to`,
-	)
+	addCommonFlags(flags, &opts.commonOptions)
 
 	return cmd
 }
 
-func runPlayground(opts *playgroundOptions, output io.Writer) error {
-	fsys, err := os.OpenRoot(opts.path)
+func runPlayground(opts *playgroundOptions) error {
+	root, outputRoot, err := setupFsys(&opts.commonOptions)
 	if err != nil {
 		return err
 	}
 
-	manifest, err := labx.Playground(fsys.FS(), opts.channel)
+	manifest, err := labx.Playground(root.FS(), opts.channel)
 	if err != nil {
 		return err
 	}
 
-	if strings.ToLower(opts.channel) == "beta" {
+	if opts.channel == "beta" {
 		manifest.Markdown = betaNotice + manifest.Markdown
 	}
 
+	// Create the manifest.yaml file
+	file, err := outputRoot.Create("manifest.yaml")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
 	encoder := yaml.NewEncoder(
-		output,
+		file,
 		yaml.UseLiteralStyleIfMultiline(true),
 		yaml.IndentSequence(true),
 	)
@@ -75,7 +65,7 @@ const betaNotice = `::remark-box
 kind: warning
 ---
 
-⚠️ This content is marked as **beta**, meaning it’s unfinished or still in progress and may change significantly.
+⚠️ This content is marked as **beta**, meaning it's unfinished or still in progress and may change significantly.
 ::
 
 `
