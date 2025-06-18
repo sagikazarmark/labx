@@ -9,16 +9,16 @@ import (
 )
 
 type PlaygroundManifest struct {
-	Kind        string             `yaml:"kind" json:"kind"`
-	Name        string             `yaml:"name" json:"name"`
-	Base        string             `yaml:"base" json:"base"`
-	Title       string             `yaml:"title" json:"title"`
+	Kind        string             `yaml:"kind"        json:"kind"`
+	Name        string             `yaml:"name"        json:"name"`
+	Base        string             `yaml:"base"        json:"base"`
+	Title       string             `yaml:"title"       json:"title"`
 	Description string             `yaml:"description" json:"description"`
-	Channels    map[string]Channel `yaml:"channels" json:"channels"`
-	Cover       string             `yaml:"cover" json:"cover"`
-	Categories  []string           `yaml:"categories" json:"categories"`
-	Markdown    string             `yaml:"markdown" json:"markdown"`
-	Playground  PlaygroundSpec     `yaml:"playground" json:"playground"`
+	Channels    map[string]Channel `yaml:"channels"    json:"channels"`
+	Cover       string             `yaml:"cover"       json:"cover"`
+	Categories  []string           `yaml:"categories"  json:"categories"`
+	Markdown    string             `yaml:"markdown"    json:"markdown"`
+	Playground  PlaygroundSpec     `yaml:"playground"  json:"playground"`
 }
 
 func (m PlaygroundManifest) Convert() api.PlaygroundManifest {
@@ -36,12 +36,12 @@ func (m PlaygroundManifest) Convert() api.PlaygroundManifest {
 }
 
 type PlaygroundSpec struct {
-	Welcome        string                  `yaml:"welcome" json:"welcome"`
-	Networks       []api.PlaygroundNetwork `yaml:"networks" json:"networks"`
-	Machines       PlaygroundMachines      `yaml:"machines" json:"machines"`
-	Tabs           []api.PlaygroundTab     `yaml:"tabs" json:"tabs"`
-	InitTasks      InitTasks               `yaml:"initTasks" json:"initTasks"`
-	InitConditions api.InitConditions      `yaml:"initConditions" json:"initConditions"`
+	Welcome        string                  `yaml:"welcome"                json:"welcome"`
+	Networks       []api.PlaygroundNetwork `yaml:"networks"               json:"networks"`
+	Machines       PlaygroundMachines      `yaml:"machines"               json:"machines"`
+	Tabs           []api.PlaygroundTab     `yaml:"tabs"                   json:"tabs"`
+	InitTasks      InitTasks               `yaml:"initTasks"              json:"initTasks"`
+	InitConditions api.InitConditions      `yaml:"initConditions"         json:"initConditions"`
 	RegistryAuth   string                  `yaml:"registryAuth,omitempty" json:"registryAuth,omitempty"`
 
 	AccessControl api.PlaygroundAccessControl `yaml:"accessControl" json:"accessControl"`
@@ -91,15 +91,15 @@ func (m PlaygroundMachines) Convert() []api.PlaygroundMachine {
 }
 
 type PlaygroundMachine struct {
-	Name         string               `yaml:"name" json:"name"`
+	Name         string               `yaml:"name"               json:"name"`
 	Hostname     string               `yaml:"hostname,omitempty" json:"hostname,omitempty"`
-	IDEPath      string               `yaml:"idePath,omitempty" json:"idePath,omitempty"`
-	Users        MachineUsers         `yaml:"users" json:"users"`
-	Kernel       string               `yaml:"kernel,omitempty" json:"kernel,omitempty"`
-	Drives       []api.MachineDrive   `yaml:"drives" json:"drives"`
-	Network      api.MachineNetwork   `yaml:"network" json:"network"`
-	Resources    api.MachineResources `yaml:"resources" json:"resources"`
-	StartupFiles MachineStartupFiles  `yaml:"startupFiles" json:"startupFiles"`
+	IDEPath      string               `yaml:"idePath,omitempty"  json:"idePath,omitempty"`
+	Users        MachineUsers         `yaml:"users"              json:"users"`
+	Kernel       string               `yaml:"kernel,omitempty"   json:"kernel,omitempty"`
+	Drives       []api.MachineDrive   `yaml:"drives"             json:"drives"`
+	Network      api.MachineNetwork   `yaml:"network"            json:"network"`
+	Resources    api.MachineResources `yaml:"resources"          json:"resources"`
+	StartupFiles MachineStartupFiles  `yaml:"startupFiles"       json:"startupFiles"`
 }
 
 func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
@@ -153,9 +153,9 @@ func (u MachineUsers) Convert() []api.MachineUser {
 }
 
 type MachineUser struct {
-	Name        string `yaml:"name" json:"name"`
-	Default     bool   `yaml:"default,omitempty" json:"default,omitempty"`
-	Welcome     string `yaml:"welcome,omitempty" json:"welcome,omitempty"`
+	Name        string `yaml:"name"                  json:"name"`
+	Default     bool   `yaml:"default,omitempty"     json:"default,omitempty"`
+	Welcome     string `yaml:"welcome,omitempty"     json:"welcome,omitempty"`
 	WelcomeFile string `yaml:"welcomeFile,omitempty" json:"welcomeFile,omitempty"`
 }
 
@@ -176,12 +176,12 @@ func (m MachineStartupFiles) Convert() []api.MachineStartupFile {
 }
 
 type MachineStartupFile struct {
-	Path     string `yaml:"path" json:"path"`
+	Path     string `yaml:"path"               json:"path"`
 	FromFile string `yaml:"fromFile,omitempty" json:"fromFile,omitempty"`
-	Content  string `yaml:"content,omitempty" json:"content,omitempty"`
-	Mode     string `yaml:"mode,omitempty" json:"mode,omitempty"`
-	Owner    string `yaml:"owner,omitempty" json:"owner,omitempty"`
-	Append   bool   `yaml:"append,omitempty" json:"append,omitempty"`
+	Content  string `yaml:"content,omitempty"  json:"content,omitempty"`
+	Mode     string `yaml:"mode,omitempty"     json:"mode,omitempty"`
+	Owner    string `yaml:"owner,omitempty"    json:"owner,omitempty"`
+	Append   bool   `yaml:"append,omitempty"   json:"append,omitempty"`
 }
 
 func (f MachineStartupFile) Convert() api.MachineStartupFile {
@@ -253,13 +253,13 @@ func (t InitTasks) Convert() map[string]api.InitTask {
 }
 
 type InitTask struct {
-	Name           string              `yaml:"name" json:"name"`
-	Machine        StringList          `yaml:"machine,omitempty" json:"machine,omitempty"`
-	Init           bool                `yaml:"init" json:"init"`
-	User           StringList          `yaml:"user" json:"user"`
-	TimeoutSeconds int                 `yaml:"timeout_seconds" json:"timeout_seconds"`
-	Needs          []string            `yaml:"needs,omitempty" json:"needs,omitempty"`
-	Run            string              `yaml:"run" json:"run"`
+	Name           string              `yaml:"name"                 json:"name"`
+	Machine        StringList          `yaml:"machine,omitempty"    json:"machine,omitempty"`
+	Init           bool                `yaml:"init"                 json:"init"`
+	User           StringList          `yaml:"user"                 json:"user"`
+	TimeoutSeconds int                 `yaml:"timeout_seconds"      json:"timeout_seconds"`
+	Needs          []string            `yaml:"needs,omitempty"      json:"needs,omitempty"`
+	Run            string              `yaml:"run"                  json:"run"`
 	Conditions     []api.InitCondition `yaml:"conditions,omitempty" json:"conditions,omitempty"`
 }
 

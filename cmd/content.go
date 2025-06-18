@@ -3,8 +3,9 @@ package cmd
 import (
 	"os"
 
-	"github.com/sagikazarmark/labx/labx"
 	"github.com/spf13/cobra"
+
+	"github.com/sagikazarmark/labx/labx"
 )
 
 type contentOptions struct {

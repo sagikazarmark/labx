@@ -9,6 +9,7 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
+
 	"github.com/sagikazarmark/labx/extended"
 )
 

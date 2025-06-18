@@ -37,7 +37,12 @@ func createDownloadScript(kind content.ContentKind) string {
 	targetDir := fmt.Sprintf("/opt/%s", kind)
 	url := fmt.Sprintf("https://labs.iximiuz.com/__static__/%s.tar.gz?t=$(date +%%s)", kind)
 
-	return fmt.Sprintf("mkdir -p %s\nwget --no-cache -O - \"%s\" | tar -xz -C %s", targetDir, url, targetDir)
+	return fmt.Sprintf(
+		"mkdir -p %s\nwget --no-cache -O - \"%s\" | tar -xz -C %s",
+		targetDir,
+		url,
+		targetDir,
+	)
 }
 
 func fileExists(fsys fs.FS, path string) (bool, error) {

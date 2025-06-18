@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"github.com/iximiuz/labctl/api"
-	"github.com/sagikazarmark/labx/extended"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/sagikazarmark/labx/extended"
 )
 
 func TestPlaygroundMachine_Hostname(t *testing.T) {
