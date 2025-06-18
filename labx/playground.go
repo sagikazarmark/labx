@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"io/fs"
+	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/goccy/go-yaml"
 	"github.com/iximiuz/labctl/api"
@@ -13,7 +15,51 @@ import (
 	"github.com/sagikazarmark/labx/extended"
 )
 
-func Playground(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
+func Playground(root *os.Root, output *os.Root, channel string) error {
+	manifest, err := generatePlaygroundManifest(root.FS(), channel)
+	if err != nil {
+		return err
+	}
+
+	if strings.ToLower(channel) == "beta" {
+		manifest.Markdown = betaNotice + manifest.Markdown
+	}
+
+	// Create the manifest.yaml file
+	file, err := output.Create("manifest.yaml")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	encoder := yaml.NewEncoder(
+		file,
+		yaml.UseLiteralStyleIfMultiline(true),
+		yaml.IndentSequence(true),
+	)
+
+	err = encoder.Encode(manifest)
+	if err != nil {
+		return err
+	}
+
+	// Copy static files if they exist
+	hasStatic, err := dirExists(root.FS(), "static")
+	if err != nil {
+		return err
+	}
+
+	if hasStatic {
+		err = copyStaticFiles(root, output, "static", "__static__")
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func generatePlaygroundManifest(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 	manifestFile, err := fsys.Open("manifest.yaml")
 	if err != nil {
 		return api.PlaygroundManifest{}, err

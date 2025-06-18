@@ -154,9 +154,19 @@ func (s ContentPlaygroundSpec) Convert() core.ContentPlaygroundSpec {
 	}
 }
 
-func (s ContentPlaygroundSpec) convertMachines() []api.PlaygroundMachine {
+func (s ContentPlaygroundSpec) convertMachines() []core.ContentPlaygroundMachine {
 	if s.BaseName == "flexbox" {
-		return s.Machines.Convert()
+		return lo.Map(s.Machines.Convert(), func(machine api.PlaygroundMachine, _ int) core.ContentPlaygroundMachine {
+			return core.ContentPlaygroundMachine{
+				Name:         machine.Name,
+				Users:        machine.Users,
+				Kernel:       machine.Kernel,
+				Drives:       machine.Drives,
+				Network:      machine.Network,
+				Resources:    machine.Resources,
+				StartupFiles: machine.StartupFiles,
+			}
+		})
 	}
 
 	parentMachines := lo.SliceToMap(s.Base.Machines, func(machine api.PlaygroundMachine) (string, api.PlaygroundMachine) {
@@ -180,7 +190,17 @@ func (s ContentPlaygroundSpec) convertMachines() []api.PlaygroundMachine {
 		}
 	}
 
-	return machines
+	return lo.Map(machines, func(machine api.PlaygroundMachine, _ int) core.ContentPlaygroundMachine {
+		return core.ContentPlaygroundMachine{
+			Name:         machine.Name,
+			Users:        machine.Users,
+			Kernel:       machine.Kernel,
+			Drives:       machine.Drives,
+			Network:      machine.Network,
+			Resources:    machine.Resources,
+			StartupFiles: machine.StartupFiles,
+		}
+	})
 }
 
 type Task struct {
