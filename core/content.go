@@ -9,7 +9,7 @@ type ContentManifest struct {
 	Kind        content.ContentKind   `yaml:"kind"                 json:"kind"`
 	Title       string                `yaml:"title"                json:"title"`
 	Description string                `yaml:"description"          json:"description"`
-	Categories  []string              `yaml:"categories,omitempts" json:"categories,omitempty"`
+	Categories  []string              `yaml:"categories,omitempty" json:"categories,omitempty"`
 	Tags        []string              `yaml:"tagz,omitempty"       json:"tagz,omitempty"`
 	CreatedAt   string                `yaml:"createdAt"            json:"createdAt"`
 	UpdatedAt   string                `yaml:"updatedAt,omitempty"  json:"updatedAt,omitempty"`
