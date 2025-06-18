@@ -7,6 +7,8 @@ import (
 
 type ContentManifest struct {
 	Kind        content.ContentKind   `yaml:"kind" json:"kind"`
+	Name        string                `yaml:"name,omitempty" json:"name,omitempty"`
+	Slug        string                `yaml:"slug,omitempty" json:"slug,omitempty"`
 	Title       string                `yaml:"title" json:"title"`
 	Description string                `yaml:"description" json:"description"`
 	Categories  []string              `yaml:"categories" json:"categories"`

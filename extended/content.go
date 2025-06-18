@@ -11,6 +11,8 @@ import (
 
 type ContentManifest struct {
 	Kind        content.ContentKind   `yaml:"kind" json:"kind"`
+	Name        string                `yaml:"name,omitempty" json:"name,omitempty"`
+	Slug        string                `yaml:"slug,omitempty" json:"slug,omitempty"`
 	Title       string                `yaml:"title" json:"title"`
 	Description string                `yaml:"description" json:"description"`
 	Channels    map[string]Channel    `yaml:"channels" json:"channels"`
@@ -27,6 +29,8 @@ type ContentManifest struct {
 func (m ContentManifest) Convert() core.ContentManifest {
 	v := core.ContentManifest{
 		Kind:        m.Kind,
+		Name:        m.Name,
+		Slug:        m.Slug,
 		Title:       m.Title,
 		Description: m.Description,
 		Categories:  m.Categories,
