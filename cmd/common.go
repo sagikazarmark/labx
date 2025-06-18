@@ -18,7 +18,6 @@ type commonOptions struct {
 
 // addCommonFlags adds the common flags to a command
 func addCommonFlags(flags *pflag.FlagSet, opts *commonOptions) {
-
 	flags.StringVar(
 		&opts.path,
 		"path",
@@ -71,7 +70,7 @@ func setupFsys(opts *commonOptions) (*os.Root, *os.Root, error) {
 	}
 
 	// Create the output directory
-	err = os.MkdirAll(outputPath, 0755)
+	err = os.MkdirAll(outputPath, 0o755)
 	if err != nil {
 		return nil, nil, err
 	}

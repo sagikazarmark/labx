@@ -156,29 +156,37 @@ func (s ContentPlaygroundSpec) Convert() core.ContentPlaygroundSpec {
 
 func (s ContentPlaygroundSpec) convertMachines() []core.ContentPlaygroundMachine {
 	if s.BaseName == "flexbox" {
-		return lo.Map(s.Machines.Convert(), func(machine api.PlaygroundMachine, _ int) core.ContentPlaygroundMachine {
-			return core.ContentPlaygroundMachine{
-				Name:         machine.Name,
-				Users:        machine.Users,
-				Kernel:       machine.Kernel,
-				Drives:       machine.Drives,
-				Network:      machine.Network,
-				Resources:    machine.Resources,
-				StartupFiles: machine.StartupFiles,
-			}
-		})
+		return lo.Map(
+			s.Machines.Convert(),
+			func(machine api.PlaygroundMachine, _ int) core.ContentPlaygroundMachine {
+				return core.ContentPlaygroundMachine{
+					Name:         machine.Name,
+					Users:        machine.Users,
+					Kernel:       machine.Kernel,
+					Drives:       machine.Drives,
+					Network:      machine.Network,
+					Resources:    machine.Resources,
+					StartupFiles: machine.StartupFiles,
+				}
+			},
+		)
 	}
 
-	parentMachines := lo.SliceToMap(s.Base.Machines, func(machine api.PlaygroundMachine) (string, api.PlaygroundMachine) {
-		return machine.Name, machine
-	})
+	parentMachines := lo.SliceToMap(
+		s.Base.Machines,
+		func(machine api.PlaygroundMachine) (string, api.PlaygroundMachine) {
+			return machine.Name, machine
+		},
+	)
 
 	// Make sure to include startup files from parent playground and apply welcome message
 	machines := s.Machines.Convert()
 	for i, machine := range machines {
 		parentMachine := parentMachines[machine.Name]
 
-		machines[i].StartupFiles = append(slices.Clone(parentMachine.StartupFiles), machine.StartupFiles...)
+		machines[i].StartupFiles = append(
+			slices.Clone(parentMachine.StartupFiles),
+			machine.StartupFiles...)
 
 		// Apply welcome message to default users if specified
 		if s.Welcome != "" {
@@ -190,17 +198,20 @@ func (s ContentPlaygroundSpec) convertMachines() []core.ContentPlaygroundMachine
 		}
 	}
 
-	return lo.Map(machines, func(machine api.PlaygroundMachine, _ int) core.ContentPlaygroundMachine {
-		return core.ContentPlaygroundMachine{
-			Name:         machine.Name,
-			Users:        machine.Users,
-			Kernel:       machine.Kernel,
-			Drives:       machine.Drives,
-			Network:      machine.Network,
-			Resources:    machine.Resources,
-			StartupFiles: machine.StartupFiles,
-		}
-	})
+	return lo.Map(
+		machines,
+		func(machine api.PlaygroundMachine, _ int) core.ContentPlaygroundMachine {
+			return core.ContentPlaygroundMachine{
+				Name:         machine.Name,
+				Users:        machine.Users,
+				Kernel:       machine.Kernel,
+				Drives:       machine.Drives,
+				Network:      machine.Network,
+				Resources:    machine.Resources,
+				StartupFiles: machine.StartupFiles,
+			}
+		},
+	)
 }
 
 type Task struct {
