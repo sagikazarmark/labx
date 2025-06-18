@@ -429,8 +429,8 @@ func renderLessonManifest(
 		return err
 	}
 
-	// Create the output index.md file
-	outputFile, err := output.Create(outputPath + "/index.md")
+	// Create the output 00-index.md file
+	outputFile, err := output.Create(outputPath + "/00-index.md")
 	if err != nil {
 		return err
 	}
