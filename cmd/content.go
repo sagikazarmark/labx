@@ -1,17 +1,22 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/sagikazarmark/labx/labx"
 )
 
+const defaultOutput = "dist"
+
 type contentOptions struct {
 	path    string
 	channel string
 	output  string
+	clear   bool
 }
 
 func NewContentCommand() *cobra.Command {
@@ -48,6 +53,13 @@ func NewContentCommand() *cobra.Command {
 		`Output directory`,
 	)
 
+	flags.BoolVar(
+		&opts.clear,
+		"clear",
+		false,
+		`Clear output directory before generating content`,
+	)
+
 	return cmd
 }
 
@@ -58,28 +70,40 @@ func runContent(opts *contentOptions) error {
 	}
 
 	var outputRoot *os.Root
+	var outputPath string
+
 	if opts.output == "" {
-		// Fall back to dist directory within the root
-		// Make sure dist exists within root
-		err = root.Mkdir("dist", 0755)
-		if err != nil && !os.IsExist(err) {
-			return err
-		}
-
-		outputRoot, err = root.OpenRoot("dist")
-		if err != nil {
-			return err
-		}
+		outputPath = filepath.Join(opts.path, defaultOutput)
 	} else {
-		// Create the output directory and create an os.Root for it
-		err = os.MkdirAll(opts.output, 0755)
-		if err != nil {
+		outputPath = opts.output
+	}
+
+	// If clear is true, always remove the directory first
+	if opts.clear {
+		err = os.RemoveAll(outputPath)
+		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
+	}
 
-		outputRoot, err = os.OpenRoot(opts.output)
-		if err != nil {
+	// Create the output directory
+	err = os.MkdirAll(outputPath, 0755)
+	if err != nil {
+		return err
+	}
+
+	// Create the os.Root instance
+	outputRoot, err = os.OpenRoot(outputPath)
+	if err != nil {
+		return err
+	}
+
+	// If clear is false, check if directory is empty
+	if !opts.clear {
+		if dirExists, err := isDirEmptyPath(outputPath); err != nil {
 			return err
+		} else if !dirExists {
+			return fmt.Errorf("output directory '%s' is not empty. Use --clear to remove it first", outputPath)
 		}
 	}
 
@@ -89,4 +113,14 @@ func runContent(opts *contentOptions) error {
 	}
 
 	return nil
+}
+
+// isDirEmptyPath checks if a directory path is empty or doesn't exist
+// Returns true if directory is empty or doesn't exist, false if it contains files
+func isDirEmptyPath(path string) (bool, error) {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return false, err
+	}
+	return len(entries) == 0, nil
 }
