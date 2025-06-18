@@ -133,7 +133,7 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 		return core.ContentManifest{}, err
 	}
 
-	if extendedManifest.Kind != content.KindTraining && extendedManifest.Kind != content.KindCourse {
+	if extendedManifest.Playground.Name != "" {
 		hf, err := hasFiles(fsys, extendedManifest.Kind)
 		if err != nil {
 			return core.ContentManifest{}, err
