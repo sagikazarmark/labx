@@ -11,6 +11,7 @@ import (
 type contentOptions struct {
 	path    string
 	channel string
+	output  string
 }
 
 func NewContentCommand() *cobra.Command {
@@ -40,6 +41,13 @@ func NewContentCommand() *cobra.Command {
 		`Which channel to push the playground to`,
 	)
 
+	flags.StringVar(
+		&opts.output,
+		"output",
+		"",
+		`Output directory`,
+	)
+
 	return cmd
 }
 
@@ -49,7 +57,33 @@ func runContent(opts *contentOptions) error {
 		return err
 	}
 
-	err = labx.Content(root, opts.channel)
+	var outputRoot *os.Root
+	if opts.output == "" {
+		// Fall back to dist directory within the root
+		// Make sure dist exists within root
+		err = root.Mkdir("dist", 0755)
+		if err != nil && !os.IsExist(err) {
+			return err
+		}
+
+		outputRoot, err = root.OpenRoot("dist")
+		if err != nil {
+			return err
+		}
+	} else {
+		// Create the output directory and create an os.Root for it
+		err = os.MkdirAll(opts.output, 0755)
+		if err != nil {
+			return err
+		}
+
+		outputRoot, err = os.OpenRoot(opts.output)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = labx.Content(root, outputRoot, opts.channel)
 	if err != nil {
 		return err
 	}
