@@ -11,7 +11,7 @@ import (
 
 func main() {
 	cmd := &cobra.Command{
-		Use:     "labx <generate|playground|content>",
+		Use:     "labx <generate>",
 		Short:   "labx - opinionated tools for iximiuz Labs content",
 		Version: version,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
@@ -22,8 +22,6 @@ func main() {
 
 	cmd.AddCommand(
 		xcmd.NewGenerateCommand(),
-		xcmd.NewPlaygroundCommand(),
-		xcmd.NewContentCommand(),
 	)
 
 	err := cmd.Execute()
