@@ -4,3 +4,5 @@
 /test/
 # Added by goreleaser init:
 dist/
+
+/lx
