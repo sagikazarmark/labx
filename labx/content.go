@@ -560,6 +560,7 @@ func createTemplateFuncs(fsys fs.FS) template.FuncMap {
 			sproutstrings.NewRegistry(),
 			sproutx.NewFSRegistry(fsys),
 			sproutx.NewStringsRegistry(),
+			sproutx.NewGitHubRegistry(),
 		),
 	).Build()
 }
