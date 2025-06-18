@@ -252,7 +252,7 @@ func renderSimpleCourse(root *os.Root, dist *os.Root, channel string) error {
 
 		err = renderLesson(root, dist, lessonPath, lessonName, channel)
 		if err != nil {
-			return fmt.Errorf("failed to render lesson %s: %w", lessonName, err)
+			return fmt.Errorf("render lesson %s: %w", lessonName, err)
 		}
 	}
 
@@ -279,7 +279,7 @@ func renderModularCourse(root *os.Root, dist *os.Root, channel string) error {
 		// Process module manifest
 		err = renderModuleManifest(root, dist, modulePath, moduleName)
 		if err != nil {
-			return fmt.Errorf("failed to render module manifest %s: %w", moduleName, err)
+			return fmt.Errorf("render module manifest %s: %w", moduleName, err)
 		}
 
 		// Process lessons within the module
@@ -300,7 +300,7 @@ func renderModularCourse(root *os.Root, dist *os.Root, channel string) error {
 			err = renderLesson(root, dist, lessonPath, outputPath, channel)
 			if err != nil {
 				return fmt.Errorf(
-					"failed to render lesson %s in module %s: %w",
+					"render lesson %s in module %s: %w",
 					lessonName,
 					moduleName,
 					err,
@@ -370,13 +370,13 @@ func renderLesson(root *os.Root, dist *os.Root, lessonPath, outputPath, channel 
 	// Create a sub-filesystem constrained to the lesson directory
 	lessonFS, err := fs.Sub(fsys, lessonPath)
 	if err != nil {
-		return fmt.Errorf("failed to create lesson sub-filesystem: %w", err)
+		return fmt.Errorf("create lesson sub-filesystem: %w", err)
 	}
 
 	// Create lesson-specific template instance with access to course-level templates
 	tpl, err := createLessonTemplate(root.FS(), lessonFS)
 	if err != nil {
-		return fmt.Errorf("failed to create lesson template: %w", err)
+		return fmt.Errorf("create lesson template: %w", err)
 	}
 
 	// Find files in the lesson directory
@@ -391,7 +391,7 @@ func renderLesson(root *os.Root, dist *os.Root, lessonPath, outputPath, channel 
 			if file.Name() == "static" {
 				err = copyStaticFiles(root, dist, lessonPath+"/static", outputPath+"/__static__")
 				if err != nil {
-					return fmt.Errorf("failed to copy static files: %w", err)
+					return fmt.Errorf("copy static files: %w", err)
 				}
 			}
 			continue
@@ -403,13 +403,13 @@ func renderLesson(root *os.Root, dist *os.Root, lessonPath, outputPath, channel 
 
 			outputFile, err := dist.Create(outputFilePath)
 			if err != nil {
-				return fmt.Errorf("failed to create output file %s: %w", outputFilePath, err)
+				return fmt.Errorf("create output file %s: %w", outputFilePath, err)
 			}
 			defer outputFile.Close()
 
 			err = tpl.ExecuteTemplate(outputFile, fileName, nil)
 			if err != nil {
-				return fmt.Errorf("failed to execute template %s: %w", fileName, err)
+				return fmt.Errorf("execute template %s: %w", fileName, err)
 			}
 		}
 	}
@@ -588,7 +588,7 @@ func parseTemplatePatterns(
 
 		tpl, err = tpl.ParseFS(fsys, pattern)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse templates with pattern %s: %w", pattern, err)
+			return nil, fmt.Errorf("parse templates with pattern %s: %w", pattern, err)
 		}
 	}
 	return tpl, nil
@@ -613,7 +613,7 @@ func createLessonTemplate(courseFS, lessonFS fs.FS) (*template.Template, error) 
 	// Start with lesson content template (includes lesson templates and functions)
 	tpl, err := createContentTemplate(lessonFS)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create lesson content template: %w", err)
+		return nil, fmt.Errorf("create lesson content template: %w", err)
 	}
 
 	// Parse course-level templates on top (excluding *.md to avoid content files)
@@ -623,7 +623,7 @@ func createLessonTemplate(courseFS, lessonFS fs.FS) (*template.Template, error) 
 
 	tpl, err = parseTemplatePatterns(tpl, courseFS, coursePatterns)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse course templates: %w", err)
+		return nil, fmt.Errorf("parse course templates: %w", err)
 	}
 
 	return tpl, nil
