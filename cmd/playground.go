@@ -6,8 +6,9 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
-	"github.com/sagikazarmark/labx/labx"
 	"github.com/spf13/cobra"
+
+	"github.com/sagikazarmark/labx/labx"
 )
 
 type playgroundOptions struct {

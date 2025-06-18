@@ -1,6 +1,7 @@
 package labx
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -13,10 +14,11 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
+	"github.com/samber/lo"
+
 	"github.com/sagikazarmark/labx/core"
 	"github.com/sagikazarmark/labx/extended"
 	"github.com/sagikazarmark/labx/pkg/sproutx"
-	"github.com/samber/lo"
 )
 
 func Content(root *os.Root, channel string) error {
@@ -25,29 +27,25 @@ func Content(root *os.Root, channel string) error {
 		return err
 	}
 
-	indexFile, err := root.Create("dist/index.md")
+	// Create dist directory and root
+	dist, err := root.OpenRoot("dist")
+	if err != nil {
+		return err
+	}
+
+	indexFile, err := dist.Create("index.md")
 	if err != nil {
 		return err
 	}
 	defer indexFile.Close()
 
 	encoder := yaml.NewEncoder(
-		indexFile,
+		newFrontMatterWriter(indexFile),
 		yaml.UseLiteralStyleIfMultiline(true),
 		yaml.IndentSequence(true),
 	)
 
-	_, err = io.WriteString(indexFile, "---\n")
-	if err != nil {
-		return err
-	}
-
 	err = encoder.Encode(manifest)
-	if err != nil {
-		return err
-	}
-
-	_, err = io.WriteString(indexFile, "---\n")
 	if err != nil {
 		return err
 	}
@@ -59,28 +57,7 @@ func Content(root *os.Root, channel string) error {
 		}
 	}
 
-	tplFuncs := sprout.New(
-		sprout.WithRegistries(
-			sproutstrings.NewRegistry(),
-			sproutx.NewFSRegistry(root.FS()),
-			sproutx.NewStringsRegistry(),
-		),
-	).Build()
-
-	patterns := []string{"*.md"}
-
-	{
-		matches, err := fs.Glob(root.FS(), "templates/*.md")
-		if err != nil {
-			return err
-		}
-
-		if len(matches) > 0 {
-			patterns = append(patterns, "templates/*.md")
-		}
-	}
-
-	tpl, err := template.New("").Funcs(tplFuncs).ParseFS(root.FS(), patterns...)
+	tpl, err := createContentTemplate(root.FS())
 	if err != nil {
 		return err
 	}
@@ -90,23 +67,17 @@ func Content(root *os.Root, channel string) error {
 		return err
 	}
 
-	if manifest.Kind == content.KindChallenge {
-		hasSolution, err := fileExists(root.FS(), "solution.md")
+	// Handle content-specific rendering
+	switch manifest.Kind {
+	case content.KindChallenge:
+		err := renderChallenge(root, dist, tpl)
 		if err != nil {
 			return err
 		}
-
-		if hasSolution {
-			solutionFile, err := root.Create("dist/solution.md")
-			if err != nil {
-				return err
-			}
-			defer solutionFile.Close()
-
-			err = tpl.ExecuteTemplate(solutionFile, "solution.md", nil)
-			if err != nil {
-				return err
-			}
+	case content.KindCourse:
+		err := renderCourse(root, dist, channel)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -129,7 +100,7 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 		return core.ContentManifest{}, err
 	}
 
-	if extendedManifest.Kind != content.KindTraining && extendedManifest.Kind != content.KindCourse {
+	if extendedManifest.Playground.Name != "" {
 		hf, err := hasFiles(fsys, extendedManifest.Kind)
 		if err != nil {
 			return core.ContentManifest{}, err
@@ -141,14 +112,20 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 		}
 
 		if hf {
-			machines := lo.Map(extendedManifest.Playground.Machines, func(machine extended.PlaygroundMachine, _ int) string {
-				return machine.Name
-			})
+			machines := lo.Map(
+				extendedManifest.Playground.Machines,
+				func(machine extended.PlaygroundMachine, _ int) string {
+					return machine.Name
+				},
+			)
 
 			if len(machines) == 0 {
-				machines = lo.Map(basePlayground.Playground.Machines, func(machine api.PlaygroundMachine, _ int) string {
-					return machine.Name
-				})
+				machines = lo.Map(
+					basePlayground.Playground.Machines,
+					func(machine api.PlaygroundMachine, _ int) string {
+						return machine.Name
+					},
+				)
 			}
 
 			const name = "init_content_files"
@@ -189,11 +166,465 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 		extendedManifest.Playground.Machines = machines
 	}
 
-	if channel != "live" {
-		extendedManifest.Title = fmt.Sprintf("%s: %s", strings.ToUpper(channel), extendedManifest.Title)
+	// Apply channel-specific title processing only for real content kinds (not lessons)
+	if channel != "live" && string(extendedManifest.Kind) != "lesson" {
+		extendedManifest.Title = fmt.Sprintf(
+			"%s: %s",
+			strings.ToUpper(channel),
+			extendedManifest.Title,
+		)
 	}
 
 	manifest := extendedManifest.Convert()
 
 	return manifest, err
+}
+
+// renderChallenge handles challenge-specific rendering
+func renderChallenge(root *os.Root, dist *os.Root, tpl *template.Template) error {
+	hasSolution, err := fileExists(root.FS(), "solution.md")
+	if err != nil {
+		return err
+	}
+
+	if hasSolution {
+		solutionFile, err := dist.Create("solution.md")
+		if err != nil {
+			return err
+		}
+		defer solutionFile.Close()
+
+		err = tpl.ExecuteTemplate(solutionFile, "solution.md", nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// renderCourse handles rendering for both simple and modular courses
+func renderCourse(root *os.Root, dist *os.Root, channel string) error {
+	fsys := root.FS()
+
+	// Check if this is a simple course (has lessons directory)
+	hasLessons, err := dirExists(fsys, "lessons")
+	if err != nil {
+		return err
+	}
+
+	// Check if this is a modular course (has modules directory)
+	hasModules, err := dirExists(fsys, "modules")
+	if err != nil {
+		return err
+	}
+
+	// Validate that course doesn't have both structures
+	if hasLessons && hasModules {
+		return fmt.Errorf("course cannot have both 'lessons' and 'modules' directories")
+	}
+
+	if hasLessons {
+		return renderSimpleCourse(root, dist, channel)
+	} else if hasModules {
+		return renderModularCourse(root, dist, channel)
+	}
+
+	return nil
+}
+
+// renderSimpleCourse handles simple courses with a lessons directory
+func renderSimpleCourse(root *os.Root, dist *os.Root, channel string) error {
+	fsys := root.FS()
+
+	lessons, err := fs.ReadDir(fsys, "lessons")
+	if err != nil {
+		return err
+	}
+
+	for _, lesson := range lessons {
+		if !lesson.IsDir() {
+			continue
+		}
+
+		lessonName := lesson.Name()
+		lessonPath := "lessons/" + lessonName
+
+		err = renderLesson(root, dist, lessonPath, lessonName, channel)
+		if err != nil {
+			return fmt.Errorf("render lesson %s: %w", lessonName, err)
+		}
+	}
+
+	return nil
+}
+
+// renderModularCourse handles modular courses with a modules directory
+func renderModularCourse(root *os.Root, dist *os.Root, channel string) error {
+	fsys := root.FS()
+
+	modules, err := fs.ReadDir(fsys, "modules")
+	if err != nil {
+		return err
+	}
+
+	for _, module := range modules {
+		if !module.IsDir() {
+			continue
+		}
+
+		moduleName := module.Name()
+		modulePath := "modules/" + moduleName
+
+		// Process module manifest
+		err = renderModuleManifest(root, dist, modulePath, moduleName)
+		if err != nil {
+			return fmt.Errorf("render module manifest %s: %w", moduleName, err)
+		}
+
+		// Process lessons within the module
+		lessons, err := fs.ReadDir(fsys, modulePath)
+		if err != nil {
+			return err
+		}
+
+		for _, lesson := range lessons {
+			if !lesson.IsDir() {
+				continue
+			}
+
+			lessonName := lesson.Name()
+			lessonPath := modulePath + "/" + lessonName
+			outputPath := moduleName + "/" + lessonName
+
+			err = renderLesson(root, dist, lessonPath, outputPath, channel)
+			if err != nil {
+				return fmt.Errorf(
+					"render lesson %s in module %s: %w",
+					lessonName,
+					moduleName,
+					err,
+				)
+			}
+		}
+	}
+
+	return nil
+}
+
+// renderModuleManifest processes a module's manifest.yaml and creates 00-index.md
+func renderModuleManifest(root *os.Root, dist *os.Root, modulePath, moduleName string) error {
+	fsys := root.FS()
+
+	manifestPath := modulePath + "/manifest.yaml"
+	manifestFile, err := fsys.Open(manifestPath)
+	if err != nil {
+		return err
+	}
+	defer manifestFile.Close()
+
+	manifestContent, err := io.ReadAll(manifestFile)
+	if err != nil {
+		return err
+	}
+
+	outputPath := moduleName + "/00-index.md"
+
+	// Create module directory first
+	err = dist.Mkdir(moduleName, 0o755)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	outputFile, err := dist.Create(outputPath)
+	if err != nil {
+		return err
+	}
+	defer outputFile.Close()
+
+	fmw := newFrontMatterWriter(outputFile)
+	_, err = fmw.Write(manifestContent)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// renderLesson processes a lesson directory and renders its content
+func renderLesson(root *os.Root, dist *os.Root, lessonPath, outputPath, channel string) error {
+	fsys := root.FS()
+
+	// Create lesson directory first
+	err := dist.Mkdir(outputPath, 0o755)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	// Process lesson manifest through the same pipeline as other manifests
+	err = renderLessonManifest(root, dist, lessonPath, outputPath, channel)
+	if err != nil {
+		return err
+	}
+
+	// Create a sub-filesystem constrained to the lesson directory
+	lessonFS, err := fs.Sub(fsys, lessonPath)
+	if err != nil {
+		return fmt.Errorf("create lesson sub-filesystem: %w", err)
+	}
+
+	// Create lesson-specific template instance with access to course-level templates
+	tpl, err := createLessonTemplate(root.FS(), lessonFS)
+	if err != nil {
+		return fmt.Errorf("create lesson template: %w", err)
+	}
+
+	// Find files in the lesson directory
+	lessonFiles, err := fs.ReadDir(lessonFS, ".")
+	if err != nil {
+		return err
+	}
+
+	for _, file := range lessonFiles {
+		if file.IsDir() {
+			// Handle static directory
+			if file.Name() == "static" {
+				err = copyStaticFiles(root, dist, lessonPath+"/static", outputPath+"/__static__")
+				if err != nil {
+					return fmt.Errorf("copy static files: %w", err)
+				}
+			}
+			continue
+		}
+
+		fileName := file.Name()
+		if strings.HasSuffix(fileName, ".md") && fileName != "index.md" {
+			outputFilePath := outputPath + "/" + fileName
+
+			outputFile, err := dist.Create(outputFilePath)
+			if err != nil {
+				return fmt.Errorf("create output file %s: %w", outputFilePath, err)
+			}
+			defer outputFile.Close()
+
+			err = tpl.ExecuteTemplate(outputFile, fileName, nil)
+			if err != nil {
+				return fmt.Errorf("execute template %s: %w", fileName, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// renderLessonManifest processes a lesson's manifest.yaml and creates index.md
+func renderLessonManifest(
+	root *os.Root,
+	dist *os.Root,
+	lessonPath, outputPath, channel string,
+) error {
+	// Create a sub-filesystem for the lesson directory
+	lessonFS, err := fs.Sub(root.FS(), lessonPath)
+	if err != nil {
+		return err
+	}
+
+	// Process the lesson manifest through the core pipeline with course channel but skip title processing
+	manifest, err := convertContentManifest(lessonFS, channel)
+	if err != nil {
+		return err
+	}
+
+	// Create the output index.md file
+	outputFile, err := dist.Create(outputPath + "/index.md")
+	if err != nil {
+		return err
+	}
+	defer outputFile.Close()
+
+	encoder := yaml.NewEncoder(
+		newFrontMatterWriter(outputFile),
+		yaml.UseLiteralStyleIfMultiline(true),
+		yaml.IndentSequence(true),
+	)
+
+	err = encoder.Encode(manifest)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// copyStaticFiles copies static files from source to destination
+func copyStaticFiles(root *os.Root, dist *os.Root, sourcePath, destPath string) error {
+	fsys := root.FS()
+
+	// Create the parent static directory first
+	err := dist.Mkdir(destPath, 0o755)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	return fs.WalkDir(fsys, sourcePath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip the root directory itself
+		if path == sourcePath {
+			return nil
+		}
+
+		// Calculate relative path from source
+		relPath := strings.TrimPrefix(path, sourcePath+"/")
+		outputPath := destPath + "/" + relPath
+
+		if d.IsDir() {
+			// Create directory in destination
+			err = dist.Mkdir(outputPath, 0o755)
+			if err != nil && !os.IsExist(err) {
+				return err
+			}
+			return nil
+		}
+
+		// Copy file
+		sourceFile, err := fsys.Open(path)
+		if err != nil {
+			return err
+		}
+		defer sourceFile.Close()
+
+		destFile, err := dist.Create(outputPath)
+		if err != nil {
+			return err
+		}
+		defer destFile.Close()
+
+		_, err = io.Copy(destFile, sourceFile)
+		return err
+	})
+}
+
+// dirExists checks if a directory exists
+func dirExists(fsys fs.FS, path string) (bool, error) {
+	stat, err := fs.Stat(fsys, path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	return stat.IsDir(), nil
+}
+
+// frontMatterWriter automatically adds front matter delimiters on first write
+type frontMatterWriter struct {
+	writer     io.Writer
+	firstWrite bool
+}
+
+// newFrontMatterWriter creates a new frontMatterWriter
+func newFrontMatterWriter(writer io.Writer) *frontMatterWriter {
+	return &frontMatterWriter{writer: writer}
+}
+
+func (w *frontMatterWriter) Write(p []byte) (n int, err error) {
+	if !w.firstWrite {
+		w.firstWrite = true
+
+		// Write opening delimiter
+		_, err = io.WriteString(w.writer, "---\n")
+		if err != nil {
+			return 0, err
+		}
+
+		// Write the content
+		n, err = w.writer.Write(p)
+		if err != nil {
+			return n, err
+		}
+
+		// Write closing delimiter
+		_, err = io.WriteString(w.writer, "---\n")
+		if err != nil {
+			return n, err
+		}
+
+		return n, nil
+	}
+
+	// Subsequent writes go directly to the underlying writer
+	return w.writer.Write(p)
+}
+
+// createTemplateFuncs creates template functions for the given filesystem
+func createTemplateFuncs(fsys fs.FS) template.FuncMap {
+	return sprout.New(
+		sprout.WithRegistries(
+			sproutstrings.NewRegistry(),
+			sproutx.NewFSRegistry(fsys),
+			sproutx.NewStringsRegistry(),
+		),
+	).Build()
+}
+
+// parseTemplatePatterns parses template patterns from a filesystem into a template
+func parseTemplatePatterns(
+	tpl *template.Template,
+	fsys fs.FS,
+	patterns []string,
+) (*template.Template, error) {
+	for _, pattern := range patterns {
+		matches, err := fs.Glob(fsys, pattern)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(matches) == 0 {
+			continue
+		}
+
+		tpl, err = tpl.ParseFS(fsys, pattern)
+		if err != nil {
+			return nil, fmt.Errorf("parse templates with pattern %s: %w", pattern, err)
+		}
+	}
+	return tpl, nil
+}
+
+// createContentTemplate creates a template instance for content-level rendering
+func createContentTemplate(fsys fs.FS) (*template.Template, error) {
+	tplFuncs := createTemplateFuncs(fsys)
+	tpl := template.New("").Funcs(tplFuncs)
+
+	// Parse content-level patterns
+	patterns := []string{
+		"*.md",
+		"templates/*.md",
+	}
+
+	return parseTemplatePatterns(tpl, fsys, patterns)
+}
+
+// createLessonTemplate creates a template instance for a specific lesson with access to course-level templates
+func createLessonTemplate(courseFS, lessonFS fs.FS) (*template.Template, error) {
+	// Start with lesson content template (includes lesson templates and functions)
+	tpl, err := createContentTemplate(lessonFS)
+	if err != nil {
+		return nil, fmt.Errorf("create lesson content template: %w", err)
+	}
+
+	// Parse course-level templates on top (excluding *.md to avoid content files)
+	coursePatterns := []string{
+		"templates/*.md",
+	}
+
+	tpl, err = parseTemplatePatterns(tpl, courseFS, coursePatterns)
+	if err != nil {
+		return nil, fmt.Errorf("parse course templates: %w", err)
+	}
+
+	return tpl, nil
 }

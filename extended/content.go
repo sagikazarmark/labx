@@ -5,23 +5,30 @@ import (
 
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
-	"github.com/sagikazarmark/labx/core"
 	"github.com/samber/lo"
+
+	"github.com/sagikazarmark/labx/core"
 )
 
 type ContentManifest struct {
-	Kind        content.ContentKind   `yaml:"kind" json:"kind"`
-	Title       string                `yaml:"title" json:"title"`
+	Kind        content.ContentKind   `yaml:"kind"        json:"kind"`
+	Title       string                `yaml:"title"       json:"title"`
 	Description string                `yaml:"description" json:"description"`
-	Channels    map[string]Channel    `yaml:"channels" json:"channels"`
-	Categories  []string              `yaml:"categories" json:"categories"`
-	Tags        []string              `yaml:"tagz" json:"tagz"`
-	Difficulty  string                `yaml:"difficulty,omitempty" json:"difficulty,omitempty"`
-	CreatedAt   string                `yaml:"createdAt" json:"createdAt"`
-	UpdatedAt   string                `yaml:"updatedAt" json:"updatedAt"`
-	Cover       string                `yaml:"cover" json:"cover"`
-	Playground  ContentPlaygroundSpec `yaml:"playground" json:"playground"`
-	Tasks       map[string]Task       `yaml:"tasks" json:"tasks"`
+	Channels    map[string]Channel    `yaml:"channels"    json:"channels"`
+	Categories  []string              `yaml:"categories"  json:"categories"`
+	Tags        []string              `yaml:"tagz"        json:"tagz"`
+	CreatedAt   string                `yaml:"createdAt"   json:"createdAt"`
+	UpdatedAt   string                `yaml:"updatedAt"   json:"updatedAt"`
+	Cover       string                `yaml:"cover"       json:"cover"`
+	Playground  ContentPlaygroundSpec `yaml:"playground"  json:"playground"`
+	Tasks       map[string]Task       `yaml:"tasks"       json:"tasks"`
+
+	// Challenge specific fields
+	Difficulty string `yaml:"difficulty,omitempty" json:"difficulty,omitempty"`
+
+	// Course specific fields
+	Name string `yaml:"name,omitempty" json:"name,omitempty"`
+	Slug string `yaml:"slug,omitempty" json:"slug,omitempty"`
 }
 
 func (m ContentManifest) Convert() core.ContentManifest {
@@ -31,12 +38,16 @@ func (m ContentManifest) Convert() core.ContentManifest {
 		Description: m.Description,
 		Categories:  m.Categories,
 		Tags:        m.Tags,
-		Difficulty:  m.Difficulty,
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
 		Cover:       m.Cover,
 		// Playground:  m.Playground.Convert(),
 		Tasks: m.convertTasks(),
+
+		Difficulty: m.Difficulty,
+
+		Name: m.Name,
+		Slug: m.Slug,
 	}
 
 	if m.Kind != content.KindTraining && m.Kind != content.KindCourse {
@@ -124,11 +135,11 @@ func (m ContentManifest) convertTasks() map[string]core.Task {
 }
 
 type ContentPlaygroundSpec struct {
-	Name     string                  `yaml:"name" json:"name"`
-	Welcome  string                  `yaml:"welcome" json:"welcome"`
+	Name     string                  `yaml:"name"     json:"name"`
+	Welcome  string                  `yaml:"welcome"  json:"welcome"`
 	Networks []api.PlaygroundNetwork `yaml:"networks" json:"networks"`
 	Machines PlaygroundMachines      `yaml:"machines" json:"machines"`
-	Tabs     []api.PlaygroundTab     `yaml:"tabs" json:"tabs"`
+	Tabs     []api.PlaygroundTab     `yaml:"tabs"     json:"tabs"`
 
 	BaseName string             `yaml:"-" json:"-"`
 	Base     api.PlaygroundSpec `yaml:"-" json:"-"`
@@ -174,12 +185,12 @@ func (s ContentPlaygroundSpec) convertMachines() []api.PlaygroundMachine {
 
 type Task struct {
 	Machine        StringList `yaml:"machine,omitempty" json:"machine,omitempty"`
-	Init           bool       `yaml:"init" json:"init"`
-	User           StringList `yaml:"user" json:"user"`
-	TimeoutSeconds int        `yaml:"timeout_seconds" json:"timeout_seconds"`
-	Needs          []string   `yaml:"needs,omitempty" json:"needs,omitempty"`
-	Env            []string   `yaml:"env,omitempty" json:"env,omitempty"`
-	Run            string     `yaml:"run" json:"run"`
+	Init           bool       `yaml:"init"              json:"init"`
+	User           StringList `yaml:"user"              json:"user"`
+	TimeoutSeconds int        `yaml:"timeout_seconds"   json:"timeout_seconds"`
+	Needs          []string   `yaml:"needs,omitempty"   json:"needs,omitempty"`
+	Env            []string   `yaml:"env,omitempty"     json:"env,omitempty"`
+	Run            string     `yaml:"run"               json:"run"`
 }
 
 func (t Task) Convert() core.Task {

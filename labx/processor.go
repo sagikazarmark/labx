@@ -11,8 +11,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
-	"github.com/sagikazarmark/labx/extended"
 	"github.com/samber/lo"
+
+	"github.com/sagikazarmark/labx/extended"
 )
 
 type PlaygroundProcessor struct {
@@ -23,7 +24,9 @@ type PlaygroundProcessor struct {
 	MachinesProcessor MachinesProcessor
 }
 
-func (p PlaygroundProcessor) Process(playground extended.PlaygroundManifest) (extended.PlaygroundManifest, error) {
+func (p PlaygroundProcessor) Process(
+	playground extended.PlaygroundManifest,
+) (extended.PlaygroundManifest, error) {
 	if p.Channel != "live" {
 		playground.Title = fmt.Sprintf("%s: %s", strings.ToUpper(p.Channel), playground.Title)
 	}
@@ -56,14 +59,20 @@ func (p PlaygroundProcessor) Process(playground extended.PlaygroundManifest) (ex
 	}
 
 	if hf {
-		machines := lo.Map(playground.Playground.Machines, func(machine extended.PlaygroundMachine, _ int) string {
-			return machine.Name
-		})
+		machines := lo.Map(
+			playground.Playground.Machines,
+			func(machine extended.PlaygroundMachine, _ int) string {
+				return machine.Name
+			},
+		)
 
 		if len(machines) == 0 {
-			machines = lo.Map(playground.Playground.Base.Machines, func(machine api.PlaygroundMachine, _ int) string {
-				return machine.Name
-			})
+			machines = lo.Map(
+				playground.Playground.Base.Machines,
+				func(machine api.PlaygroundMachine, _ int) string {
+					return machine.Name
+				},
+			)
 		}
 
 		const name = "init_files"
@@ -84,7 +93,9 @@ type MachinesProcessor struct {
 	MachineProcessor MachineProcessor
 }
 
-func (p MachinesProcessor) Process(machines []extended.PlaygroundMachine) ([]extended.PlaygroundMachine, error) {
+func (p MachinesProcessor) Process(
+	machines []extended.PlaygroundMachine,
+) ([]extended.PlaygroundMachine, error) {
 	machineProcessor := p.MachineProcessor
 
 	// Set a default drive size to make sure we don't exceed the limit
@@ -113,11 +124,17 @@ type MachineProcessor struct {
 	StartupFileProcessor MachineStartupFileProcessor
 }
 
-func (p MachineProcessor) Process(machine extended.PlaygroundMachine) (extended.PlaygroundMachine, error) {
+func (p MachineProcessor) Process(
+	machine extended.PlaygroundMachine,
+) (extended.PlaygroundMachine, error) {
 	for i, user := range machine.Users {
 		user, err := p.UserProcessor.Process(user)
 		if err != nil {
-			return extended.PlaygroundMachine{}, fmt.Errorf("processing user %s: %w", user.Name, err)
+			return extended.PlaygroundMachine{}, fmt.Errorf(
+				"processing user %s: %w",
+				user.Name,
+				err,
+			)
 		}
 
 		machine.Users[i] = user
@@ -135,7 +152,11 @@ func (p MachineProcessor) Process(machine extended.PlaygroundMachine) (extended.
 	for i, startupFile := range machine.StartupFiles {
 		startupFile, err := p.StartupFileProcessor.Process(startupFile)
 		if err != nil {
-			return extended.PlaygroundMachine{}, fmt.Errorf("processing startup file %d: %w", i, err)
+			return extended.PlaygroundMachine{}, fmt.Errorf(
+				"processing startup file %d: %w",
+				i,
+				err,
+			)
 		}
 
 		machine.StartupFiles[i] = startupFile
@@ -204,7 +225,13 @@ func (p MachineDriveProcessor) processSource(source string) (string, error) {
 
 	// Fallback to default source
 	if source == "" {
-		source = fmt.Sprintf("%s/%s/%s:%s", p.DefaultImageRepo, p.ContentKind.Plural(), p.ContentName, p.Channel)
+		source = fmt.Sprintf(
+			"%s/%s/%s:%s",
+			p.DefaultImageRepo,
+			p.ContentKind.Plural(),
+			p.ContentName,
+			p.Channel,
+		)
 	}
 
 	// Replace channel placeholder
@@ -235,7 +262,9 @@ type MachineStartupFileProcessor struct {
 	DefaultMode  string
 }
 
-func (p MachineStartupFileProcessor) Process(startupFile extended.MachineStartupFile) (extended.MachineStartupFile, error) {
+func (p MachineStartupFileProcessor) Process(
+	startupFile extended.MachineStartupFile,
+) (extended.MachineStartupFile, error) {
 	if startupFile.FromFile != "" {
 		contentFile, err := p.Fsys.Open(startupFile.FromFile)
 		if err != nil {
