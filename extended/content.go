@@ -11,36 +11,42 @@ import (
 
 type ContentManifest struct {
 	Kind        content.ContentKind   `yaml:"kind" json:"kind"`
-	Name        string                `yaml:"name,omitempty" json:"name,omitempty"`
-	Slug        string                `yaml:"slug,omitempty" json:"slug,omitempty"`
 	Title       string                `yaml:"title" json:"title"`
 	Description string                `yaml:"description" json:"description"`
 	Channels    map[string]Channel    `yaml:"channels" json:"channels"`
 	Categories  []string              `yaml:"categories" json:"categories"`
 	Tags        []string              `yaml:"tagz" json:"tagz"`
-	Difficulty  string                `yaml:"difficulty,omitempty" json:"difficulty,omitempty"`
 	CreatedAt   string                `yaml:"createdAt" json:"createdAt"`
 	UpdatedAt   string                `yaml:"updatedAt" json:"updatedAt"`
 	Cover       string                `yaml:"cover" json:"cover"`
 	Playground  ContentPlaygroundSpec `yaml:"playground" json:"playground"`
 	Tasks       map[string]Task       `yaml:"tasks" json:"tasks"`
+
+	// Challenge specific fields
+	Difficulty string `yaml:"difficulty,omitempty" json:"difficulty,omitempty"`
+
+	// Course specific fields
+	Name string `yaml:"name,omitempty" json:"name,omitempty"`
+	Slug string `yaml:"slug,omitempty" json:"slug,omitempty"`
 }
 
 func (m ContentManifest) Convert() core.ContentManifest {
 	v := core.ContentManifest{
 		Kind:        m.Kind,
-		Name:        m.Name,
-		Slug:        m.Slug,
 		Title:       m.Title,
 		Description: m.Description,
 		Categories:  m.Categories,
 		Tags:        m.Tags,
-		Difficulty:  m.Difficulty,
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
 		Cover:       m.Cover,
 		// Playground:  m.Playground.Convert(),
 		Tasks: m.convertTasks(),
+
+		Difficulty: m.Difficulty,
+
+		Name: m.Name,
+		Slug: m.Slug,
 	}
 
 	if m.Kind != content.KindTraining && m.Kind != content.KindCourse {

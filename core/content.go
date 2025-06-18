@@ -8,17 +8,21 @@ import (
 type ContentManifest struct {
 	Kind        content.ContentKind   `yaml:"kind" json:"kind"`
 	Name        string                `yaml:"name,omitempty" json:"name,omitempty"`
-	Slug        string                `yaml:"slug,omitempty" json:"slug,omitempty"`
-	Title       string                `yaml:"title" json:"title"`
 	Description string                `yaml:"description" json:"description"`
 	Categories  []string              `yaml:"categories" json:"categories"`
 	Tags        []string              `yaml:"tagz" json:"tagz"`
-	Difficulty  string                `yaml:"difficulty,omitempty" json:"difficulty,omitempty"`
 	CreatedAt   string                `yaml:"createdAt" json:"createdAt"`
 	UpdatedAt   string                `yaml:"updatedAt" json:"updatedAt"`
 	Cover       string                `yaml:"cover" json:"cover"`
 	Playground  ContentPlaygroundSpec `yaml:"playground,omitempty" json:"playground,omitzero"`
 	Tasks       map[string]Task       `yaml:"tasks,omitempty" json:"tasks,omitzero"`
+
+	// Challenge specific fields
+	Difficulty string `yaml:"difficulty,omitempty" json:"difficulty,omitempty"`
+
+	// Course specific fields
+	Slug  string `yaml:"slug,omitempty" json:"slug,omitempty"`
+	Title string `yaml:"title" json:"title"`
 }
 
 type ContentPlaygroundSpec struct {
