@@ -61,6 +61,19 @@ func Content(root *os.Root, output *os.Root, channel string) error {
 		return err
 	}
 
+	// Copy static files if they exist at the root level
+	hasStatic, err := dirExists(root.FS(), "static")
+	if err != nil {
+		return err
+	}
+
+	if hasStatic {
+		err = copyStaticFiles(root, output, "static", "__static__")
+		if err != nil {
+			return fmt.Errorf("copy static files: %w", err)
+		}
+	}
+
 	// Handle content-specific rendering
 	switch manifest.Kind {
 	case content.KindChallenge:
