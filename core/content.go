@@ -37,8 +37,8 @@ type ContentPlaygroundMachine struct {
 	Users        []api.MachineUser        `yaml:"users,omitempty"        json:"users,omitempty"`
 	Kernel       string                   `yaml:"kernel,omitempty"       json:"kernel,omitempty"`
 	Drives       []api.MachineDrive       `yaml:"drives,omitempty"       json:"drives,omitempty"`
-	Network      api.MachineNetwork       `yaml:"network,omitzero"       json:"network,omitzero"`
-	Resources    api.MachineResources     `yaml:"resources,omitzero"     json:"resources,omitzero"`
+	Network      *api.MachineNetwork      `yaml:"network,omitzero"       json:"network,omitzero"`
+	Resources    *api.MachineResources    `yaml:"resources,omitzero"     json:"resources,omitzero"`
 	StartupFiles []api.MachineStartupFile `yaml:"startupFiles,omitempty" json:"startupFiles,omitempty"`
 }
 

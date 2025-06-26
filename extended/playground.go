@@ -91,15 +91,15 @@ func (m PlaygroundMachines) Convert() []api.PlaygroundMachine {
 }
 
 type PlaygroundMachine struct {
-	Name         string               `yaml:"name"               json:"name"`
-	Hostname     string               `yaml:"hostname,omitempty" json:"hostname,omitempty"`
-	IDEPath      string               `yaml:"idePath,omitempty"  json:"idePath,omitempty"`
-	Users        MachineUsers         `yaml:"users"              json:"users"`
-	Kernel       string               `yaml:"kernel,omitempty"   json:"kernel,omitempty"`
-	Drives       []api.MachineDrive   `yaml:"drives"             json:"drives"`
-	Network      api.MachineNetwork   `yaml:"network"            json:"network"`
-	Resources    api.MachineResources `yaml:"resources"          json:"resources"`
-	StartupFiles MachineStartupFiles  `yaml:"startupFiles"       json:"startupFiles"`
+	Name         string                `yaml:"name"               json:"name"`
+	Hostname     string                `yaml:"hostname,omitempty" json:"hostname,omitempty"`
+	IDEPath      string                `yaml:"idePath,omitempty"  json:"idePath,omitempty"`
+	Users        MachineUsers          `yaml:"users"              json:"users"`
+	Kernel       string                `yaml:"kernel,omitempty"   json:"kernel,omitempty"`
+	Drives       []api.MachineDrive    `yaml:"drives"             json:"drives"`
+	Network      *api.MachineNetwork   `yaml:"network,omitzero"   json:"network,omitzero"`
+	Resources    *api.MachineResources `yaml:"resources,omitzero" json:"resources,omitzero"`
+	StartupFiles MachineStartupFiles   `yaml:"startupFiles"       json:"startupFiles"`
 }
 
 func (m PlaygroundMachine) Convert() api.PlaygroundMachine {

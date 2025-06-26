@@ -29,9 +29,8 @@ func TestPlaygroundMachine_Hostname(t *testing.T) {
 	}
 
 	expected := api.PlaygroundMachine{
-		Name:      "test",
-		Users:     []api.MachineUser{},
-		Resources: api.MachineResources{},
+		Name:  "test",
+		Users: []api.MachineUser{},
 		StartupFiles: []api.MachineStartupFile{
 			{
 				Path:    "/etc/hostname",
