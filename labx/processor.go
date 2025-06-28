@@ -237,6 +237,10 @@ func (p MachineDriveProcessor) processSource(source string) (string, error) {
 	// Replace channel placeholder
 	source = strings.ReplaceAll(source, "__CHANNEL__", p.Channel)
 
+	if strings.HasPrefix(source, "ghcr.io/iximiuz/labs/rootfs") {
+		return fmt.Sprintf("oci://%s", source), nil
+	}
+
 	ref, err := name.ParseReference(source)
 	if err != nil {
 		return "", err
