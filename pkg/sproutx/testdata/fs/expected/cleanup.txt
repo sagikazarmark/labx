@@ -1,0 +1,5 @@
+	// This is where cleanup code would go
+	// Multiple lines are supported
+	defer func() {
+		fmt.Println("Goodbye!")
+	}()

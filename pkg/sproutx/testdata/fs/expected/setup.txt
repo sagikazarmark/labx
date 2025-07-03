@@ -1,0 +1,4 @@
+	name := "World"
+	if len(os.Args) > 1 {
+		name = strings.Join(os.Args[1:], " ")
+	}

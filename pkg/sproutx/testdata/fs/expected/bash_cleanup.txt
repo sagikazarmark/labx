@@ -1,0 +1,9 @@
+# Function to cleanup on exit
+cleanup() {
+    log_info "Cleaning up temporary files"
+    rm -rf /tmp/myapp/data/*
+    log_info "Cleanup complete"
+}
+
+# Register cleanup function
+trap cleanup EXIT

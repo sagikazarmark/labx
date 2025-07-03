@@ -1,0 +1,73 @@
+# Shell/Python style comments
+# @block:shell_config
+export PATH="/usr/local/bin:$PATH"
+export EDITOR="vim"
+# @endblock:shell_config
+
+// Go/C++ style comments
+// @block:go_imports
+import (
+    "fmt"
+    "os"
+)
+// @endblock:go_imports
+
+/* C-style multi-line comments */
+/* @block:c_function */
+int add(int a, int b) {
+    return a + b;
+}
+/* @endblock:c_function */
+
+<!-- HTML/XML style comments -->
+<!-- @block:html_header -->
+<head>
+    <title>Example Page</title>
+    <meta charset="UTF-8">
+</head>
+<!-- @endblock:html_header -->
+
+-- SQL style comments
+-- @block:sql_query
+SELECT name, email
+FROM users
+WHERE active = 1
+ORDER BY created_at DESC;
+-- @endblock:sql_query
+
+% LaTeX style comments
+% @block:latex_preamble
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+% @endblock:latex_preamble
+
+; Lisp/Scheme style comments
+; @block:lisp_function
+(defun factorial (n)
+  (if (<= n 1)
+      1
+      (* n (factorial (- n 1)))))
+; @endblock:lisp_function
+
+# YAML with comments
+# @block:yaml_config
+database:
+  host: localhost
+  port: 5432
+  name: myapp
+# @endblock:yaml_config
+
+// JavaScript with mixed content
+// @block:js_function
+function greet(name) {
+    return `Hello, ${name}!`;
+}
+// @endblock
+
+// Block without specific name in endblock
+// @block:generic_block
+This content uses a generic @endblock
+without specifying the block name.
+Both styles are supported.
+// @endblock
