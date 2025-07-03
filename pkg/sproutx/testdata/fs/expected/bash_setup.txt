@@ -1,0 +1,6 @@
+# Create necessary directories
+mkdir -p /tmp/myapp/{logs,data,config}
+
+# Set permissions
+chmod 755 /tmp/myapp
+chmod 700 /tmp/myapp/logs

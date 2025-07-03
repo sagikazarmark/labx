@@ -1,0 +1,9 @@
+This is a multi-line block that demonstrates
+how the block syntax works with different
+comment styles.
+
+The block markers work in:
+- Single-line comments (//)
+- Multi-line comments (/* */)
+- Shell-style comments (#)
+- Any other comment format

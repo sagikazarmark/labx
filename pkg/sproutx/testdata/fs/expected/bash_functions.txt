@@ -1,0 +1,25 @@
+function log_info() {
+    echo "[INFO] $(date): $1"
+}
+
+function log_error() {
+    echo "[ERROR] $(date): $1" >&2
+}
+
+function retry_command() {
+    local command="$1"
+    local max_attempts="$2"
+    local attempt=1
+
+    while [ $attempt -le $max_attempts ]; do
+        log_info "Attempt $attempt of $max_attempts: $command"
+        if eval "$command"; then
+            return 0
+        fi
+        attempt=$((attempt + 1))
+        sleep 2
+    done
+
+    log_error "Command failed after $max_attempts attempts: $command"
+    return 1
+}
