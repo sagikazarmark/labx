@@ -29,6 +29,10 @@ type ContentManifest struct {
 	// Course specific fields
 	Name string `yaml:"name,omitempty" json:"name,omitempty"`
 	Slug string `yaml:"slug,omitempty" json:"slug,omitempty"`
+
+	// Content embedding
+	Challenges map[string]struct{} `yaml:"challenges,omitempty" json:"challenges,omitempty"`
+	Tutorials  map[string]struct{} `yaml:"tutorials,omitempty" json:"tutorials,omitempty"`
 }
 
 func (m ContentManifest) Convert() core.ContentManifest {
@@ -48,6 +52,9 @@ func (m ContentManifest) Convert() core.ContentManifest {
 
 		Name: m.Name,
 		Slug: m.Slug,
+
+		Challenges: m.Challenges,
+		Tutorials:  m.Tutorials,
 	}
 
 	if m.Kind != content.KindTraining && m.Kind != content.KindCourse {
