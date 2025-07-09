@@ -6,7 +6,7 @@ require (
 	github.com/go-sprout/sprout v1.0.1
 	github.com/goccy/go-yaml v1.18.0
 	github.com/google/go-containerregistry v0.20.6
-	github.com/iximiuz/labctl v0.1.38
+	github.com/iximiuz/labctl v0.1.43
 	github.com/samber/lo v1.51.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
@@ -17,7 +17,7 @@ require (
 	github.com/briandowns/spinner v1.23.2 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.16.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/docker/cli v28.2.2+incompatible // indirect
+	github.com/docker/cli v28.3.1+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
 	github.com/fatih/color v1.18.0 // indirect
