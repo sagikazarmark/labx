@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-sprout/sprout"
 	sproutstrings "github.com/go-sprout/sprout/registry/strings"
+	sprouttime "github.com/go-sprout/sprout/registry/time"
 	"github.com/goccy/go-yaml"
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
@@ -573,6 +574,7 @@ func createTemplateFuncs(fsys fs.FS) template.FuncMap {
 			sproutstrings.NewRegistry(),
 			sproutx.NewFSRegistry(fsys),
 			sproutx.NewStringsRegistry(),
+			sprouttime.NewRegistry(),
 		),
 	).Build()
 }
