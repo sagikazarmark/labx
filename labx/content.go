@@ -87,6 +87,11 @@ func Content(root *os.Root, output *os.Root, channel string) error {
 		if err != nil {
 			return err
 		}
+	case content.KindTraining:
+		err := renderTraining(root, output, tpl)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -205,6 +210,68 @@ func renderChallenge(root *os.Root, output *os.Root, tpl *template.Template) err
 		err = tpl.ExecuteTemplate(solutionFile, "solution.md", nil)
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+// renderTraining handles training-specific rendering
+func renderTraining(root *os.Root, output *os.Root, tpl *template.Template) error {
+	fsys := root.FS()
+
+	// Process program.md if it exists
+	hasProgramFile, err := fileExists(fsys, "program.md")
+	if err != nil {
+		return err
+	}
+
+	if hasProgramFile {
+		programFile, err := output.Create("program.md")
+		if err != nil {
+			return err
+		}
+		defer programFile.Close()
+
+		err = tpl.ExecuteTemplate(programFile, "program.md", nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Process units directory if it exists
+	hasUnits, err := dirExists(fsys, "units")
+	if err != nil {
+		return err
+	}
+
+	if hasUnits {
+		units, err := fs.ReadDir(fsys, "units")
+		if err != nil {
+			return err
+		}
+
+		for _, unit := range units {
+			if unit.IsDir() {
+				continue
+			}
+
+			unitName := unit.Name()
+			if !strings.HasSuffix(unitName, ".md") {
+				continue
+			}
+
+			// Copy and process markdown files from units/ to the root
+			outputFile, err := output.Create(unitName)
+			if err != nil {
+				return fmt.Errorf("create unit file %s: %w", unitName, err)
+			}
+			defer outputFile.Close()
+
+			err = tpl.ExecuteTemplate(outputFile, "units/"+unitName, nil)
+			if err != nil {
+				return fmt.Errorf("execute template for unit %s: %w", unitName, err)
+			}
 		}
 	}
 
