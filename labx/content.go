@@ -261,16 +261,9 @@ func renderTraining(root *os.Root, output *os.Root, tpl *template.Template) erro
 				continue
 			}
 
-			// Copy and process markdown files from units/ to the root
-			outputFile, err := output.Create(unitName)
+			err = renderUnit(root, output, "units", unitName)
 			if err != nil {
-				return fmt.Errorf("create unit file %s: %w", unitName, err)
-			}
-			defer outputFile.Close()
-
-			err = tpl.ExecuteTemplate(outputFile, unitName, nil)
-			if err != nil {
-				return fmt.Errorf("execute template for unit %s: %w", unitName, err)
+				return fmt.Errorf("render unit %s: %w", unitName, err)
 			}
 		}
 	}
@@ -684,6 +677,37 @@ func createContentTemplate(fsys fs.FS) (*template.Template, error) {
 	return parseTemplatePatterns(tpl, fsys, patterns)
 }
 
+// renderUnit processes a unit file and renders its content
+func renderUnit(root *os.Root, output *os.Root, unitPath, unitName string) error {
+	fsys := root.FS()
+
+	// Create a sub-filesystem constrained to the units directory
+	unitsFS, err := fs.Sub(fsys, unitPath)
+	if err != nil {
+		return fmt.Errorf("create units sub-filesystem: %w", err)
+	}
+
+	// Create unit-specific template instance with access to training-level templates
+	tpl, err := createUnitTemplate(root.FS(), unitsFS)
+	if err != nil {
+		return fmt.Errorf("create unit template: %w", err)
+	}
+
+	// Copy and process markdown files from units/ to the root
+	outputFile, err := output.Create(unitName)
+	if err != nil {
+		return fmt.Errorf("create unit file %s: %w", unitName, err)
+	}
+	defer outputFile.Close()
+
+	err = tpl.ExecuteTemplate(outputFile, unitName, nil)
+	if err != nil {
+		return fmt.Errorf("execute template for unit %s: %w", unitName, err)
+	}
+
+	return nil
+}
+
 // createLessonTemplate creates a template instance for a specific lesson with access to course-level templates
 func createLessonTemplate(courseFS, lessonFS fs.FS) (*template.Template, error) {
 	// Start with lesson content template (includes lesson templates and functions)
@@ -700,6 +724,27 @@ func createLessonTemplate(courseFS, lessonFS fs.FS) (*template.Template, error) 
 	tpl, err = parseTemplatePatterns(tpl, courseFS, coursePatterns)
 	if err != nil {
 		return nil, fmt.Errorf("parse course templates: %w", err)
+	}
+
+	return tpl, nil
+}
+
+// createUnitTemplate creates a template instance for a specific unit with access to training-level templates
+func createUnitTemplate(trainingFS, unitsFS fs.FS) (*template.Template, error) {
+	// Start with units content template (includes unit templates and functions)
+	tpl, err := createContentTemplate(unitsFS)
+	if err != nil {
+		return nil, fmt.Errorf("create unit content template: %w", err)
+	}
+
+	// Parse training-level templates on top (excluding *.md to avoid content files)
+	trainingPatterns := []string{
+		"templates/*.md",
+	}
+
+	tpl, err = parseTemplatePatterns(tpl, trainingFS, trainingPatterns)
+	if err != nil {
+		return nil, fmt.Errorf("parse training templates: %w", err)
 	}
 
 	return tpl, nil
