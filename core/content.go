@@ -27,6 +27,9 @@ type ContentManifest struct {
 	// Content embedding
 	Challenges map[string]struct{} `yaml:"challenges,omitempty" json:"challenges,omitempty"`
 	Tutorials  map[string]struct{} `yaml:"tutorials,omitempty" json:"tutorials,omitempty"`
+
+	// Training specific fields
+	WorkingTitle string `yaml:"workingTitle,omitempty" json:"workingTitle,omitempty"`
 }
 
 type ContentPlaygroundSpec struct {
