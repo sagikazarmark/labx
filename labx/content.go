@@ -268,7 +268,7 @@ func renderTraining(root *os.Root, output *os.Root, tpl *template.Template) erro
 			}
 			defer outputFile.Close()
 
-			err = tpl.ExecuteTemplate(outputFile, "units/"+unitName, nil)
+			err = tpl.ExecuteTemplate(outputFile, unitName, nil)
 			if err != nil {
 				return fmt.Errorf("execute template for unit %s: %w", unitName, err)
 			}
