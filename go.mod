@@ -9,7 +9,7 @@ require (
 	github.com/iximiuz/labctl v0.1.44
 	github.com/samber/lo v1.51.0
 	github.com/spf13/cobra v1.9.1
-	github.com/spf13/pflag v1.0.6
+	github.com/spf13/pflag v1.0.7
 	github.com/stretchr/testify v1.10.0
 )
 
