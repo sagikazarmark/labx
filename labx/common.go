@@ -18,10 +18,6 @@ kind: warning
 
 `
 
-type templateData struct {
-	Fsys fs.FS
-}
-
 func hasFiles(fsys fs.FS, kind content.ContentKind) (bool, error) {
 	_, err := fs.Stat(fsys, fmt.Sprintf("dist/__static__/%s.tar.gz", kind.String()))
 	if errors.Is(err, fs.ErrNotExist) {

@@ -22,12 +22,6 @@ import (
 	"github.com/sagikazarmark/labx/pkg/sproutx"
 )
 
-// TemplateData holds the data passed to template executions
-type TemplateData struct {
-	Channel  string
-	Manifest core.ContentManifest
-}
-
 func Content(root *os.Root, output *os.Root, channel string) error {
 	manifest, err := convertContentManifest(root.FS(), channel)
 	if err != nil {
@@ -63,11 +57,11 @@ func Content(root *os.Root, output *os.Root, channel string) error {
 		return err
 	}
 
-	templateData := TemplateData{
+	data := templateData{
 		Channel:  channel,
 		Manifest: manifest,
 	}
-	err = tpl.ExecuteTemplate(indexFile, "index.md", templateData)
+	err = tpl.ExecuteTemplate(indexFile, "index.md", data)
 	if err != nil {
 		return err
 	}
@@ -88,7 +82,7 @@ func Content(root *os.Root, output *os.Root, channel string) error {
 	// Handle content-specific rendering
 	switch manifest.Kind {
 	case content.KindChallenge:
-		err := renderChallenge(root, output, tpl, manifest, channel)
+		err := renderChallenge(root, output, tpl, channel, manifest)
 		if err != nil {
 			return err
 		}
@@ -98,7 +92,7 @@ func Content(root *os.Root, output *os.Root, channel string) error {
 			return err
 		}
 	case content.KindTraining:
-		err := renderTraining(root, output, tpl, manifest, channel)
+		err := renderTraining(root, output, tpl, channel, manifest)
 		if err != nil {
 			return err
 		}
@@ -203,8 +197,14 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 	return manifest, err
 }
 
+// templateData holds the data passed to template executions
+type templateData struct {
+	Channel  string
+	Manifest core.ContentManifest
+}
+
 // renderChallenge handles challenge-specific rendering
-func renderChallenge(root *os.Root, output *os.Root, tpl *template.Template, manifest core.ContentManifest, channel string) error {
+func renderChallenge(root *os.Root, output *os.Root, tpl *template.Template, channel string, manifest core.ContentManifest) error {
 	hasSolution, err := fileExists(root.FS(), "solution.md")
 	if err != nil {
 		return err
@@ -217,11 +217,11 @@ func renderChallenge(root *os.Root, output *os.Root, tpl *template.Template, man
 		}
 		defer solutionFile.Close()
 
-		templateData := TemplateData{
+		data := templateData{
 			Channel:  channel,
 			Manifest: manifest,
 		}
-		err = tpl.ExecuteTemplate(solutionFile, "solution.md", templateData)
+		err = tpl.ExecuteTemplate(solutionFile, "solution.md", data)
 		if err != nil {
 			return err
 		}
@@ -231,7 +231,7 @@ func renderChallenge(root *os.Root, output *os.Root, tpl *template.Template, man
 }
 
 // renderTraining handles training-specific rendering
-func renderTraining(root *os.Root, output *os.Root, tpl *template.Template, manifest core.ContentManifest, channel string) error {
+func renderTraining(root *os.Root, output *os.Root, tpl *template.Template, channel string, manifest core.ContentManifest) error {
 	fsys := root.FS()
 
 	// Process program.md if it exists
@@ -247,11 +247,11 @@ func renderTraining(root *os.Root, output *os.Root, tpl *template.Template, mani
 		}
 		defer programFile.Close()
 
-		templateData := TemplateData{
+		data := templateData{
 			Channel:  channel,
 			Manifest: manifest,
 		}
-		err = tpl.ExecuteTemplate(programFile, "program.md", templateData)
+		err = tpl.ExecuteTemplate(programFile, "program.md", data)
 		if err != nil {
 			return err
 		}
@@ -279,7 +279,7 @@ func renderTraining(root *os.Root, output *os.Root, tpl *template.Template, mani
 				continue
 			}
 
-			err = renderUnit(root, output, "units", unitName, manifest, channel)
+			err = renderUnit(root, output, "units", unitName, channel, manifest)
 			if err != nil {
 				return fmt.Errorf("render unit %s: %w", unitName, err)
 			}
@@ -504,11 +504,11 @@ func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath, channe
 				return fmt.Errorf("convert lesson manifest for template data: %w", err)
 			}
 
-			templateData := TemplateData{
+			data := templateData{
 				Channel:  channel,
 				Manifest: lessonManifest,
 			}
-			err = tpl.ExecuteTemplate(outputFile, fileName, templateData)
+			err = tpl.ExecuteTemplate(outputFile, fileName, data)
 			if err != nil {
 				return fmt.Errorf("execute template %s: %w", fileName, err)
 			}
@@ -711,7 +711,7 @@ func createContentTemplate(fsys fs.FS) (*template.Template, error) {
 }
 
 // renderUnit processes a unit file and renders its content
-func renderUnit(root *os.Root, output *os.Root, unitPath, unitName string, manifest core.ContentManifest, channel string) error {
+func renderUnit(root *os.Root, output *os.Root, unitPath, unitName string, channel string, manifest core.ContentManifest) error {
 	fsys := root.FS()
 
 	// Create a sub-filesystem constrained to the units directory
@@ -733,11 +733,11 @@ func renderUnit(root *os.Root, output *os.Root, unitPath, unitName string, manif
 	}
 	defer outputFile.Close()
 
-	templateData := TemplateData{
+	data := templateData{
 		Channel:  channel,
 		Manifest: manifest,
 	}
-	err = tpl.ExecuteTemplate(outputFile, unitName, templateData)
+	err = tpl.ExecuteTemplate(outputFile, unitName, data)
 	if err != nil {
 		return fmt.Errorf("execute template for unit %s: %w", unitName, err)
 	}
