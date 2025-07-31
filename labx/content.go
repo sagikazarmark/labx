@@ -1,13 +1,11 @@
 package labx
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -785,73 +783,6 @@ func createLessonTemplate(courseFS, lessonFS fs.FS) (*template.Template, error) 
 	}
 
 	return tpl, nil
-}
-
-// loadExtraTemplateData loads additional template data from JSON and YAML files in the data/ directory
-func loadExtraTemplateData(fsys fs.FS) (map[string]any, error) {
-	extraData := make(map[string]any)
-
-	// Check if data directory exists
-	dataDir := "data"
-	_, err := fs.Stat(fsys, dataDir)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			// No data directory, return empty map
-			return extraData, nil
-		}
-		return nil, fmt.Errorf("stat data directory: %w", err)
-	}
-
-	// Walk through the data directory
-	err = fs.WalkDir(fsys, dataDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip directories
-		if d.IsDir() {
-			return nil
-		}
-
-		// Only process JSON and YAML files
-		ext := strings.ToLower(filepath.Ext(d.Name()))
-		if ext != ".json" && ext != ".yaml" && ext != ".yml" {
-			return nil
-		}
-
-		// Read the file
-		fileData, err := fs.ReadFile(fsys, path)
-		if err != nil {
-			return fmt.Errorf("read file %s: %w", path, err)
-		}
-
-		// Parse based on extension
-		var data any
-		switch ext {
-		case ".json":
-			err = json.Unmarshal(fileData, &data)
-			if err != nil {
-				return fmt.Errorf("parse JSON file %s: %w", path, err)
-			}
-		case ".yaml", ".yml":
-			err = yaml.Unmarshal(fileData, &data)
-			if err != nil {
-				return fmt.Errorf("parse YAML file %s: %w", path, err)
-			}
-		}
-
-		// Use filename without extension as key
-		key := strings.TrimSuffix(d.Name(), ext)
-		extraData[key] = data
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("walk data directory: %w", err)
-	}
-
-	return extraData, nil
 }
 
 // createUnitTemplate creates a template instance for a specific unit with access to training-level templates
