@@ -34,13 +34,7 @@ func Content(root *os.Root, output *os.Root, channel string) error {
 	}
 	defer indexFile.Close()
 
-	encoder := yaml.NewEncoder(
-		newFrontMatterWriter(indexFile),
-		yaml.UseLiteralStyleIfMultiline(true),
-		yaml.IndentSequence(true),
-	)
-
-	err = encoder.Encode(manifest)
+	err = writeManifest(indexFile, manifest)
 	if err != nil {
 		return err
 	}
@@ -196,6 +190,30 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 	manifest := extendedManifest.Convert()
 
 	return manifest, err
+}
+
+func writeManifest(w io.Writer, manifest core.ContentManifest) error {
+	encoder := yaml.NewEncoder(
+		newFrontMatterWriter(w),
+		yaml.UseLiteralStyleIfMultiline(true),
+		yaml.IndentSequence(true),
+	)
+
+	return encoder.Encode(manifest)
+}
+
+func renderManifest(
+	output *os.Root,
+	filePath string,
+	manifest core.ContentManifest,
+) error {
+	outputFile, err := output.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer outputFile.Close()
+
+	return writeManifest(outputFile, manifest)
 }
 
 // templateData holds the data passed to template executions
@@ -463,7 +481,7 @@ func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath, channe
 	}
 
 	// Process lesson manifest through the same pipeline as other manifests
-	err = renderLessonManifest(output, outputPath, lessonManifest)
+	err = renderManifest(output, outputPath+"/00-index.md", lessonManifest)
 	if err != nil {
 		return err
 	}
@@ -512,34 +530,6 @@ func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath, channe
 				return fmt.Errorf("execute template %s: %w", fileName, err)
 			}
 		}
-	}
-
-	return nil
-}
-
-// renderLessonManifest processes a lesson manifest and creates index.md
-func renderLessonManifest(
-	output *os.Root,
-	outputPath string,
-	manifest core.ContentManifest,
-) error {
-
-	// Create the output 00-index.md file
-	outputFile, err := output.Create(outputPath + "/00-index.md")
-	if err != nil {
-		return err
-	}
-	defer outputFile.Close()
-
-	encoder := yaml.NewEncoder(
-		newFrontMatterWriter(outputFile),
-		yaml.UseLiteralStyleIfMultiline(true),
-		yaml.IndentSequence(true),
-	)
-
-	err = encoder.Encode(manifest)
-	if err != nil {
-		return err
 	}
 
 	return nil
