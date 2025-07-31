@@ -16,7 +16,7 @@ import (
 )
 
 func Playground(root *os.Root, output *os.Root, channel string) error {
-	manifest, err := generatePlaygroundManifest(root.FS(), channel)
+	manifest, err := convertPlaygroundManifest(root.FS(), channel)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func Playground(root *os.Root, output *os.Root, channel string) error {
 	return nil
 }
 
-func generatePlaygroundManifest(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
+func convertPlaygroundManifest(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
 	manifestFile, err := fsys.Open("manifest.yaml")
 	if err != nil {
 		return api.PlaygroundManifest{}, err

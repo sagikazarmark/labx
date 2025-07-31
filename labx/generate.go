@@ -30,14 +30,9 @@ func Generate(root *os.Root, output *os.Root, channel string) error {
 
 	// Route based on kind
 	if kind.Kind == "playground" {
-		return generatePlayground(root, output, channel)
+		return Playground(root, output, channel)
 	}
 
 	// Everything else goes through content processing
 	return Content(root, output, channel)
-}
-
-// generatePlayground handles playground-specific generation
-func generatePlayground(root *os.Root, output *os.Root, channel string) error {
-	return Playground(root, output, channel)
 }
