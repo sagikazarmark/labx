@@ -2,9 +2,12 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff/v5"
 	"github.com/iximiuz/labctl/api"
 	"github.com/spf13/cobra"
 )
@@ -49,48 +52,81 @@ func runCheckTasks(ctx context.Context, client *api.Client, playID string, opts 
 	timeoutCtx, cancel := context.WithTimeout(ctx, opts.timeout)
 	defer cancel()
 
-	// Polling interval
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
+	// Configure exponential backoff
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = 5 * time.Second
+	b.MaxInterval = 30 * time.Second
 
-	for {
-		select {
-		case <-timeoutCtx.Done():
-			return fmt.Errorf("timeout reached while waiting for tasks to complete")
-		case <-ticker.C:
-			play, err := client.GetPlay(timeoutCtx, playID)
-			if err != nil {
-				return fmt.Errorf("failed to get play %s: %w", playID, err)
-			}
+	operation := func() (bool, error) {
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
 
-			// Check if all tasks are successful
-			allSuccessful := true
-			failedTasks := []string{}
-			pendingTasks := []string{}
-
-			for name, task := range play.Tasks {
-				switch task.Status {
-				case api.PlayTaskStatusCompleted:
-					// Task is successful, continue
-				case api.PlayTaskStatusFailed:
-					allSuccessful = false
-					failedTasks = append(failedTasks, name)
-				default:
-					allSuccessful = false
-					pendingTasks = append(pendingTasks, name)
-				}
-			}
-
-			if len(failedTasks) > 0 {
-				return fmt.Errorf("tasks failed: %v", failedTasks)
-			}
-
-			if allSuccessful {
-				fmt.Printf("All tasks for play %s are successful\n", playID)
-				return nil
-			}
-
-			fmt.Printf("Waiting for tasks to complete. Pending: %v\n", pendingTasks)
+		play, err := client.GetPlay(ctx, playID)
+		if err != nil {
+			return false, getPlayError(playID, err)
 		}
+
+		// Check if all tasks are successful
+		allSuccessful := true
+		failedTasks := []string{}
+		pendingTasks := []string{}
+
+		for name, task := range play.Tasks {
+			switch task.Status {
+			case api.PlayTaskStatusCompleted:
+				// Task is successful, continue
+			case api.PlayTaskStatusFailed:
+				allSuccessful = false
+				failedTasks = append(failedTasks, name)
+			default:
+				allSuccessful = false
+				pendingTasks = append(pendingTasks, name)
+			}
+		}
+
+		// Failed tasks are a permanent error
+		if len(failedTasks) > 0 {
+			return false, backoff.Permanent(fmt.Errorf("tasks failed: %v", failedTasks))
+		}
+
+		if allSuccessful {
+			fmt.Printf("All tasks for play %s are successful\n", playID)
+
+			return true, nil
+		}
+
+		fmt.Printf("Waiting for tasks to complete. Pending: %v\n", pendingTasks)
+
+		return false, fmt.Errorf("tasks still pending: %v", pendingTasks)
 	}
+
+	_, err := backoff.Retry(
+		timeoutCtx,
+		operation,
+		backoff.WithBackOff(b),
+		backoff.WithMaxElapsedTime(opts.timeout),
+	)
+
+	return err
+}
+
+func getPlayError(playID string, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	nerr := fmt.Errorf("failed to get play %s: %w", playID, err)
+
+	// Check if error is api.ErrNotFound
+	if errors.Is(err, api.ErrNotFound) {
+		return backoff.Permanent(nerr)
+	}
+
+	// Check if error message starts with "request failed with status 4" (client errors)
+	errMsg := err.Error()
+	if strings.HasPrefix(errMsg, "request failed with status 4") {
+		return backoff.Permanent(nerr)
+	}
+
+	return nerr
 }
