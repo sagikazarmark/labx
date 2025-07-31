@@ -1,7 +1,6 @@
 package labx
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -34,13 +33,7 @@ func Content(root *os.Root, output *os.Root, channel string) error {
 	}
 	defer indexFile.Close()
 
-	encoder := yaml.NewEncoder(
-		newFrontMatterWriter(indexFile),
-		yaml.UseLiteralStyleIfMultiline(true),
-		yaml.IndentSequence(true),
-	)
-
-	err = encoder.Encode(manifest)
+	err = writeManifest(indexFile, manifest)
 	if err != nil {
 		return err
 	}
@@ -57,7 +50,26 @@ func Content(root *os.Root, output *os.Root, channel string) error {
 		return err
 	}
 
-	err = tpl.ExecuteTemplate(indexFile, "index.md", nil)
+	extraData, err := loadExtraTemplateData(root.FS())
+	if err != nil {
+		return fmt.Errorf("load extra template data: %w", err)
+	}
+
+	ctx := renderContext{
+		Root:     root,
+		Output:   output,
+		Channel:  channel,
+		Manifest: manifest,
+		Extra:    extraData,
+	}
+
+	data := templateData{
+		Channel:  ctx.Channel,
+		Manifest: ctx.Manifest,
+		Extra:    ctx.Extra,
+	}
+
+	err = tpl.ExecuteTemplate(indexFile, "index.md", data)
 	if err != nil {
 		return err
 	}
@@ -78,17 +90,17 @@ func Content(root *os.Root, output *os.Root, channel string) error {
 	// Handle content-specific rendering
 	switch manifest.Kind {
 	case content.KindChallenge:
-		err := renderChallenge(root, output, tpl)
+		err := renderChallenge(ctx, tpl)
 		if err != nil {
 			return err
 		}
 	case content.KindCourse:
-		err := renderCourse(root, output, channel)
+		err := renderCourse(ctx)
 		if err != nil {
 			return err
 		}
 	case content.KindTraining:
-		err := renderTraining(root, output, tpl)
+		err := renderTraining(ctx, tpl)
 		if err != nil {
 			return err
 		}
@@ -193,398 +205,20 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 	return manifest, err
 }
 
-// renderChallenge handles challenge-specific rendering
-func renderChallenge(root *os.Root, output *os.Root, tpl *template.Template) error {
-	hasSolution, err := fileExists(root.FS(), "solution.md")
-	if err != nil {
-		return err
-	}
-
-	if hasSolution {
-		solutionFile, err := output.Create("solution.md")
-		if err != nil {
-			return err
-		}
-		defer solutionFile.Close()
-
-		err = tpl.ExecuteTemplate(solutionFile, "solution.md", nil)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+// renderContext holds all the data needed for rendering templates
+type renderContext struct {
+	Root     *os.Root
+	Output   *os.Root
+	Channel  string
+	Manifest core.ContentManifest
+	Extra    map[string]any
 }
 
-// renderTraining handles training-specific rendering
-func renderTraining(root *os.Root, output *os.Root, tpl *template.Template) error {
-	fsys := root.FS()
-
-	// Process program.md if it exists
-	hasProgramFile, err := fileExists(fsys, "program.md")
-	if err != nil {
-		return err
-	}
-
-	if hasProgramFile {
-		programFile, err := output.Create("program.md")
-		if err != nil {
-			return err
-		}
-		defer programFile.Close()
-
-		err = tpl.ExecuteTemplate(programFile, "program.md", nil)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Process units directory if it exists
-	hasUnits, err := dirExists(fsys, "units")
-	if err != nil {
-		return err
-	}
-
-	if hasUnits {
-		units, err := fs.ReadDir(fsys, "units")
-		if err != nil {
-			return err
-		}
-
-		for _, unit := range units {
-			if unit.IsDir() {
-				continue
-			}
-
-			unitName := unit.Name()
-			if !strings.HasSuffix(unitName, ".md") {
-				continue
-			}
-
-			err = renderUnit(root, output, "units", unitName)
-			if err != nil {
-				return fmt.Errorf("render unit %s: %w", unitName, err)
-			}
-		}
-	}
-
-	return nil
-}
-
-// renderCourse handles rendering for both simple and modular courses
-func renderCourse(root *os.Root, output *os.Root, channel string) error {
-	fsys := root.FS()
-
-	// Check if this is a simple course (has lessons directory)
-	hasLessons, err := dirExists(fsys, "lessons")
-	if err != nil {
-		return err
-	}
-
-	// Check if this is a modular course (has modules directory)
-	hasModules, err := dirExists(fsys, "modules")
-	if err != nil {
-		return err
-	}
-
-	// Validate that course doesn't have both structures
-	if hasLessons && hasModules {
-		return fmt.Errorf("course cannot have both 'lessons' and 'modules' directories")
-	}
-
-	if hasLessons {
-		return renderSimpleCourse(root, output, channel)
-	} else if hasModules {
-		return renderModularCourse(root, output, channel)
-	}
-
-	return nil
-}
-
-// renderSimpleCourse handles simple courses with a lessons directory
-func renderSimpleCourse(root *os.Root, output *os.Root, channel string) error {
-	fsys := root.FS()
-
-	lessons, err := fs.ReadDir(fsys, "lessons")
-	if err != nil {
-		return err
-	}
-
-	for _, lesson := range lessons {
-		if !lesson.IsDir() {
-			continue
-		}
-
-		lessonName := lesson.Name()
-		lessonPath := "lessons/" + lessonName
-
-		err = renderLesson(root, output, lessonPath, lessonName, channel)
-		if err != nil {
-			return fmt.Errorf("render lesson %s: %w", lessonName, err)
-		}
-	}
-
-	return nil
-}
-
-// renderModularCourse handles modular courses with a modules directory
-func renderModularCourse(root *os.Root, output *os.Root, channel string) error {
-	fsys := root.FS()
-
-	modules, err := fs.ReadDir(fsys, "modules")
-	if err != nil {
-		return err
-	}
-
-	for _, module := range modules {
-		if !module.IsDir() {
-			continue
-		}
-
-		moduleName := module.Name()
-		modulePath := "modules/" + moduleName
-
-		// Process module manifest
-		err = renderModuleManifest(root, output, modulePath, moduleName)
-		if err != nil {
-			return fmt.Errorf("render module manifest %s: %w", moduleName, err)
-		}
-
-		// Process lessons within the module
-		lessons, err := fs.ReadDir(fsys, modulePath)
-		if err != nil {
-			return err
-		}
-
-		for _, lesson := range lessons {
-			if !lesson.IsDir() {
-				continue
-			}
-
-			lessonName := lesson.Name()
-			lessonPath := modulePath + "/" + lessonName
-			outputPath := moduleName + "/" + lessonName
-
-			err = renderLesson(root, output, lessonPath, outputPath, channel)
-			if err != nil {
-				return fmt.Errorf(
-					"render lesson %s in module %s: %w",
-					lessonName,
-					moduleName,
-					err,
-				)
-			}
-		}
-	}
-
-	return nil
-}
-
-// renderModuleManifest processes a module's manifest.yaml and creates 00-index.md
-func renderModuleManifest(root *os.Root, output *os.Root, modulePath, moduleName string) error {
-	fsys := root.FS()
-
-	manifestPath := modulePath + "/manifest.yaml"
-	manifestFile, err := fsys.Open(manifestPath)
-	if err != nil {
-		return err
-	}
-	defer manifestFile.Close()
-
-	manifestContent, err := io.ReadAll(manifestFile)
-	if err != nil {
-		return err
-	}
-
-	outputPath := moduleName + "/00-index.md"
-
-	// Create module directory first
-	err = output.Mkdir(moduleName, 0o755)
-	if err != nil && !os.IsExist(err) {
-		return err
-	}
-
-	outputFile, err := output.Create(outputPath)
-	if err != nil {
-		return err
-	}
-	defer outputFile.Close()
-
-	fmw := newFrontMatterWriter(outputFile)
-	_, err = fmw.Write(manifestContent)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// renderLesson processes a lesson directory and renders its content
-func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath, channel string) error {
-	fsys := root.FS()
-
-	// Create lesson directory first
-	err := output.Mkdir(outputPath, 0o755)
-	if err != nil && !os.IsExist(err) {
-		return err
-	}
-
-	// Process lesson manifest through the same pipeline as other manifests
-	err = renderLessonManifest(root, output, lessonPath, outputPath, channel)
-	if err != nil {
-		return err
-	}
-
-	// Create a sub-filesystem constrained to the lesson directory
-	lessonFS, err := fs.Sub(fsys, lessonPath)
-	if err != nil {
-		return fmt.Errorf("create lesson sub-filesystem: %w", err)
-	}
-
-	// Create lesson-specific template instance with access to course-level templates
-	tpl, err := createLessonTemplate(root.FS(), lessonFS)
-	if err != nil {
-		return fmt.Errorf("create lesson template: %w", err)
-	}
-
-	// Find files in the lesson directory
-	lessonFiles, err := fs.ReadDir(lessonFS, ".")
-	if err != nil {
-		return err
-	}
-
-	for _, file := range lessonFiles {
-		if file.IsDir() {
-			// Handle static directory
-			if file.Name() == "static" {
-				err = copyStaticFiles(root, output, lessonPath+"/static", outputPath+"/__static__")
-				if err != nil {
-					return fmt.Errorf("copy static files: %w", err)
-				}
-			}
-			continue
-		}
-
-		fileName := file.Name()
-		if strings.HasSuffix(fileName, ".md") && fileName != "index.md" {
-			outputFilePath := outputPath + "/" + fileName
-
-			outputFile, err := output.Create(outputFilePath)
-			if err != nil {
-				return fmt.Errorf("create output file %s: %w", outputFilePath, err)
-			}
-			defer outputFile.Close()
-
-			err = tpl.ExecuteTemplate(outputFile, fileName, nil)
-			if err != nil {
-				return fmt.Errorf("execute template %s: %w", fileName, err)
-			}
-		}
-	}
-
-	return nil
-}
-
-// renderLessonManifest processes a lesson's manifest.yaml and creates index.md
-func renderLessonManifest(
-	root *os.Root,
-	output *os.Root,
-	lessonPath, outputPath, channel string,
-) error {
-	// Create a sub-filesystem for the lesson directory
-	lessonFS, err := fs.Sub(root.FS(), lessonPath)
-	if err != nil {
-		return err
-	}
-
-	// Process the lesson manifest through the core pipeline with course channel but skip title processing
-	manifest, err := convertContentManifest(lessonFS, channel)
-	if err != nil {
-		return err
-	}
-
-	// Create the output 00-index.md file
-	outputFile, err := output.Create(outputPath + "/00-index.md")
-	if err != nil {
-		return err
-	}
-	defer outputFile.Close()
-
-	encoder := yaml.NewEncoder(
-		newFrontMatterWriter(outputFile),
-		yaml.UseLiteralStyleIfMultiline(true),
-		yaml.IndentSequence(true),
-	)
-
-	err = encoder.Encode(manifest)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// copyStaticFiles copies static files from source to destination
-func copyStaticFiles(root *os.Root, output *os.Root, sourcePath, destPath string) error {
-	fsys := root.FS()
-
-	// Create the parent static directory first
-	err := output.Mkdir(destPath, 0o755)
-	if err != nil && !os.IsExist(err) {
-		return err
-	}
-
-	return fs.WalkDir(fsys, sourcePath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip the root directory itself
-		if path == sourcePath {
-			return nil
-		}
-
-		// Calculate relative path from source
-		relPath := strings.TrimPrefix(path, sourcePath+"/")
-		outputPath := destPath + "/" + relPath
-
-		if d.IsDir() {
-			// Create directory in destination
-			err = output.Mkdir(outputPath, 0o755)
-			if err != nil && !os.IsExist(err) {
-				return err
-			}
-			return nil
-		}
-
-		// Copy file
-		sourceFile, err := fsys.Open(path)
-		if err != nil {
-			return err
-		}
-		defer sourceFile.Close()
-
-		destFile, err := output.Create(outputPath)
-		if err != nil {
-			return err
-		}
-		defer destFile.Close()
-
-		_, err = io.Copy(destFile, sourceFile)
-		return err
-	})
-}
-
-// dirExists checks if a directory exists
-func dirExists(fsys fs.FS, path string) (bool, error) {
-	stat, err := fs.Stat(fsys, path)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return false, nil
-		}
-		return false, err
-	}
-	return stat.IsDir(), nil
+// templateData holds the data passed to template executions
+type templateData struct {
+	Channel  string
+	Manifest core.ContentManifest
+	Extra    map[string]any
 }
 
 // frontMatterWriter automatically adds front matter delimiters on first write
@@ -675,77 +309,4 @@ func createContentTemplate(fsys fs.FS) (*template.Template, error) {
 	}
 
 	return parseTemplatePatterns(tpl, fsys, patterns)
-}
-
-// renderUnit processes a unit file and renders its content
-func renderUnit(root *os.Root, output *os.Root, unitPath, unitName string) error {
-	fsys := root.FS()
-
-	// Create a sub-filesystem constrained to the units directory
-	unitsFS, err := fs.Sub(fsys, unitPath)
-	if err != nil {
-		return fmt.Errorf("create units sub-filesystem: %w", err)
-	}
-
-	// Create unit-specific template instance with access to training-level templates
-	tpl, err := createUnitTemplate(root.FS(), unitsFS)
-	if err != nil {
-		return fmt.Errorf("create unit template: %w", err)
-	}
-
-	// Copy and process markdown files from units/ to the root
-	outputFile, err := output.Create(unitName)
-	if err != nil {
-		return fmt.Errorf("create unit file %s: %w", unitName, err)
-	}
-	defer outputFile.Close()
-
-	err = tpl.ExecuteTemplate(outputFile, unitName, nil)
-	if err != nil {
-		return fmt.Errorf("execute template for unit %s: %w", unitName, err)
-	}
-
-	return nil
-}
-
-// createLessonTemplate creates a template instance for a specific lesson with access to course-level templates
-func createLessonTemplate(courseFS, lessonFS fs.FS) (*template.Template, error) {
-	// Start with lesson content template (includes lesson templates and functions)
-	tpl, err := createContentTemplate(lessonFS)
-	if err != nil {
-		return nil, fmt.Errorf("create lesson content template: %w", err)
-	}
-
-	// Parse course-level templates on top (excluding *.md to avoid content files)
-	coursePatterns := []string{
-		"templates/*.md",
-	}
-
-	tpl, err = parseTemplatePatterns(tpl, courseFS, coursePatterns)
-	if err != nil {
-		return nil, fmt.Errorf("parse course templates: %w", err)
-	}
-
-	return tpl, nil
-}
-
-// createUnitTemplate creates a template instance for a specific unit with access to training-level templates
-func createUnitTemplate(trainingFS, unitsFS fs.FS) (*template.Template, error) {
-	// Start with units content template (includes unit templates and functions)
-	tpl, err := createContentTemplate(unitsFS)
-	if err != nil {
-		return nil, fmt.Errorf("create unit content template: %w", err)
-	}
-
-	// Parse training-level templates on top (excluding *.md to avoid content files)
-	trainingPatterns := []string{
-		"templates/*.md",
-	}
-
-	tpl, err = parseTemplatePatterns(tpl, trainingFS, trainingPatterns)
-	if err != nil {
-		return nil, fmt.Errorf("parse training templates: %w", err)
-	}
-
-	return tpl, nil
 }
