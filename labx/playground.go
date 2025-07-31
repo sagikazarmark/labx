@@ -26,19 +26,7 @@ func Playground(root *os.Root, output *os.Root, channel string) error {
 	}
 
 	// Create the manifest.yaml file
-	file, err := output.Create("manifest.yaml")
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	encoder := yaml.NewEncoder(
-		file,
-		yaml.UseLiteralStyleIfMultiline(true),
-		yaml.IndentSequence(true),
-	)
-
-	err = encoder.Encode(manifest)
+	err = renderManifest(output, "manifest.yaml", manifest)
 	if err != nil {
 		return err
 	}

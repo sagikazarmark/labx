@@ -206,30 +206,6 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 	return manifest, err
 }
 
-func writeManifest(w io.Writer, manifest core.ContentManifest) error {
-	encoder := yaml.NewEncoder(
-		newFrontMatterWriter(w),
-		yaml.UseLiteralStyleIfMultiline(true),
-		yaml.IndentSequence(true),
-	)
-
-	return encoder.Encode(manifest)
-}
-
-func renderManifest(
-	output *os.Root,
-	filePath string,
-	manifest core.ContentManifest,
-) error {
-	outputFile, err := output.Create(filePath)
-	if err != nil {
-		return err
-	}
-	defer outputFile.Close()
-
-	return writeManifest(outputFile, manifest)
-}
-
 // renderContext holds all the data needed for rendering templates
 type renderContext struct {
 	Root     *os.Root

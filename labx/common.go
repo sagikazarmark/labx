@@ -3,10 +3,17 @@ package labx
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
+	"os"
 
+	"github.com/goccy/go-yaml"
+	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
+	"github.com/sagikazarmark/labx/core"
 )
+
+const defaultImageRepo = "ghcr.io/sagikazarmark/iximiuz-labs"
 
 const betaNotice = `::remark-box
 ---
@@ -57,4 +64,31 @@ func fileExists(fsys fs.FS, path string) (bool, error) {
 	return true, nil
 }
 
-const defaultImageRepo = "ghcr.io/sagikazarmark/iximiuz-labs"
+func writeManifest[T api.PlaygroundManifest | core.ContentManifest](w io.Writer, manifest T) error {
+	_, isContent := any(manifest).(core.ContentManifest)
+	if isContent {
+		w = newFrontMatterWriter(w)
+	}
+
+	encoder := yaml.NewEncoder(
+		w,
+		yaml.UseLiteralStyleIfMultiline(true),
+		yaml.IndentSequence(true),
+	)
+
+	return encoder.Encode(manifest)
+}
+
+func renderManifest[T api.PlaygroundManifest | core.ContentManifest](
+	output *os.Root,
+	filePath string,
+	manifest T,
+) error {
+	outputFile, err := output.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer outputFile.Close()
+
+	return writeManifest(outputFile, manifest)
+}
