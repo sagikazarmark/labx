@@ -61,6 +61,7 @@ func Content(root *os.Root, output *os.Root, channel string) error {
 		Channel:  channel,
 		Manifest: manifest,
 	}
+
 	err = tpl.ExecuteTemplate(indexFile, "index.md", data)
 	if err != nil {
 		return err
@@ -221,6 +222,7 @@ func renderChallenge(root *os.Root, output *os.Root, tpl *template.Template, cha
 			Channel:  channel,
 			Manifest: manifest,
 		}
+
 		err = tpl.ExecuteTemplate(solutionFile, "solution.md", data)
 		if err != nil {
 			return err
@@ -251,6 +253,7 @@ func renderTraining(root *os.Root, output *os.Root, tpl *template.Template, chan
 			Channel:  channel,
 			Manifest: manifest,
 		}
+
 		err = tpl.ExecuteTemplate(programFile, "program.md", data)
 		if err != nil {
 			return err
@@ -447,16 +450,22 @@ func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath, channe
 		return err
 	}
 
-	// Process lesson manifest through the same pipeline as other manifests
-	err = renderLessonManifest(root, output, lessonPath, outputPath, channel)
-	if err != nil {
-		return err
-	}
-
 	// Create a sub-filesystem constrained to the lesson directory
 	lessonFS, err := fs.Sub(fsys, lessonPath)
 	if err != nil {
 		return fmt.Errorf("create lesson sub-filesystem: %w", err)
+	}
+
+	// Convert lesson manifest once and reuse
+	lessonManifest, err := convertContentManifest(lessonFS, channel)
+	if err != nil {
+		return fmt.Errorf("convert lesson manifest: %w", err)
+	}
+
+	// Process lesson manifest through the same pipeline as other manifests
+	err = renderLessonManifest(output, outputPath, lessonManifest)
+	if err != nil {
+		return err
 	}
 
 	// Create lesson-specific template instance with access to course-level templates
@@ -493,21 +502,11 @@ func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath, channe
 			}
 			defer outputFile.Close()
 
-			// Get lesson manifest for template data
-			lessonFS, err := fs.Sub(root.FS(), lessonPath)
-			if err != nil {
-				return fmt.Errorf("create lesson sub-filesystem for template data: %w", err)
-			}
-
-			lessonManifest, err := convertContentManifest(lessonFS, channel)
-			if err != nil {
-				return fmt.Errorf("convert lesson manifest for template data: %w", err)
-			}
-
 			data := templateData{
 				Channel:  channel,
 				Manifest: lessonManifest,
 			}
+
 			err = tpl.ExecuteTemplate(outputFile, fileName, data)
 			if err != nil {
 				return fmt.Errorf("execute template %s: %w", fileName, err)
@@ -518,23 +517,12 @@ func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath, channe
 	return nil
 }
 
-// renderLessonManifest processes a lesson's manifest.yaml and creates index.md
+// renderLessonManifest processes a lesson manifest and creates index.md
 func renderLessonManifest(
-	root *os.Root,
 	output *os.Root,
-	lessonPath, outputPath, channel string,
+	outputPath string,
+	manifest core.ContentManifest,
 ) error {
-	// Create a sub-filesystem for the lesson directory
-	lessonFS, err := fs.Sub(root.FS(), lessonPath)
-	if err != nil {
-		return err
-	}
-
-	// Process the lesson manifest through the core pipeline with course channel but skip title processing
-	manifest, err := convertContentManifest(lessonFS, channel)
-	if err != nil {
-		return err
-	}
 
 	// Create the output 00-index.md file
 	outputFile, err := output.Create(outputPath + "/00-index.md")
