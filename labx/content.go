@@ -59,6 +59,8 @@ func Content(root *os.Root, output *os.Root, channel string) error {
 	}
 
 	ctx := renderContext{
+		Root:     root,
+		Output:   output,
 		Channel:  channel,
 		Manifest: manifest,
 		Extra:    extraData,
@@ -91,17 +93,17 @@ func Content(root *os.Root, output *os.Root, channel string) error {
 	// Handle content-specific rendering
 	switch manifest.Kind {
 	case content.KindChallenge:
-		err := renderChallenge(root, output, tpl, ctx)
+		err := renderChallenge(ctx, tpl)
 		if err != nil {
 			return err
 		}
 	case content.KindCourse:
-		err := renderCourse(root, output, ctx)
+		err := renderCourse(ctx)
 		if err != nil {
 			return err
 		}
 	case content.KindTraining:
-		err := renderTraining(root, output, tpl, ctx)
+		err := renderTraining(ctx, tpl)
 		if err != nil {
 			return err
 		}
@@ -232,6 +234,8 @@ func renderManifest(
 
 // renderContext holds all the data needed for rendering templates
 type renderContext struct {
+	Root     *os.Root
+	Output   *os.Root
 	Channel  string
 	Manifest core.ContentManifest
 	Extra    map[string]any
@@ -245,14 +249,14 @@ type templateData struct {
 }
 
 // renderChallenge handles challenge-specific rendering
-func renderChallenge(root *os.Root, output *os.Root, tpl *template.Template, ctx renderContext) error {
-	hasSolution, err := fileExists(root.FS(), "solution.md")
+func renderChallenge(ctx renderContext, tpl *template.Template) error {
+	hasSolution, err := fileExists(ctx.Root.FS(), "solution.md")
 	if err != nil {
 		return err
 	}
 
 	if hasSolution {
-		solutionFile, err := output.Create("solution.md")
+		solutionFile, err := ctx.Output.Create("solution.md")
 		if err != nil {
 			return err
 		}
@@ -274,8 +278,8 @@ func renderChallenge(root *os.Root, output *os.Root, tpl *template.Template, ctx
 }
 
 // renderTraining handles training-specific rendering
-func renderTraining(root *os.Root, output *os.Root, tpl *template.Template, ctx renderContext) error {
-	fsys := root.FS()
+func renderTraining(ctx renderContext, tpl *template.Template) error {
+	fsys := ctx.Root.FS()
 
 	// Process program.md if it exists
 	hasProgramFile, err := fileExists(fsys, "program.md")
@@ -284,7 +288,7 @@ func renderTraining(root *os.Root, output *os.Root, tpl *template.Template, ctx 
 	}
 
 	if hasProgramFile {
-		programFile, err := output.Create("program.md")
+		programFile, err := ctx.Output.Create("program.md")
 		if err != nil {
 			return err
 		}
@@ -299,6 +303,19 @@ func renderTraining(root *os.Root, output *os.Root, tpl *template.Template, ctx 
 		err = tpl.ExecuteTemplate(programFile, "program.md", data)
 		if err != nil {
 			return err
+		}
+	}
+
+	// Copy static files if they exist at the training level
+	hasStatic, err := dirExists(ctx.Root.FS(), "static")
+	if err != nil {
+		return err
+	}
+
+	if hasStatic {
+		err = copyStaticFiles(ctx.Root, ctx.Output, "static", "__static__")
+		if err != nil {
+			return fmt.Errorf("copy static files: %w", err)
 		}
 	}
 
@@ -324,7 +341,7 @@ func renderTraining(root *os.Root, output *os.Root, tpl *template.Template, ctx 
 				continue
 			}
 
-			err = renderUnit(root, output, "units", unitName, ctx)
+			err = renderUnit(ctx, "units", unitName)
 			if err != nil {
 				return fmt.Errorf("render unit %s: %w", unitName, err)
 			}
@@ -335,8 +352,8 @@ func renderTraining(root *os.Root, output *os.Root, tpl *template.Template, ctx 
 }
 
 // renderCourse handles rendering for both simple and modular courses
-func renderCourse(root *os.Root, output *os.Root, ctx renderContext) error {
-	fsys := root.FS()
+func renderCourse(ctx renderContext) error {
+	fsys := ctx.Root.FS()
 
 	// Check if this is a simple course (has lessons directory)
 	hasLessons, err := dirExists(fsys, "lessons")
@@ -356,17 +373,17 @@ func renderCourse(root *os.Root, output *os.Root, ctx renderContext) error {
 	}
 
 	if hasLessons {
-		return renderSimpleCourse(root, output, ctx)
+		return renderSimpleCourse(ctx)
 	} else if hasModules {
-		return renderModularCourse(root, output, ctx)
+		return renderModularCourse(ctx)
 	}
 
 	return nil
 }
 
 // renderSimpleCourse handles simple courses with a lessons directory
-func renderSimpleCourse(root *os.Root, output *os.Root, ctx renderContext) error {
-	fsys := root.FS()
+func renderSimpleCourse(ctx renderContext) error {
+	fsys := ctx.Root.FS()
 
 	lessons, err := fs.ReadDir(fsys, "lessons")
 	if err != nil {
@@ -381,7 +398,7 @@ func renderSimpleCourse(root *os.Root, output *os.Root, ctx renderContext) error
 		lessonName := lesson.Name()
 		lessonPath := "lessons/" + lessonName
 
-		err = renderLesson(root, output, lessonPath, lessonName, ctx)
+		err = renderLesson(ctx, lessonPath, lessonName)
 		if err != nil {
 			return fmt.Errorf("render lesson %s: %w", lessonName, err)
 		}
@@ -391,8 +408,8 @@ func renderSimpleCourse(root *os.Root, output *os.Root, ctx renderContext) error
 }
 
 // renderModularCourse handles modular courses with a modules directory
-func renderModularCourse(root *os.Root, output *os.Root, ctx renderContext) error {
-	fsys := root.FS()
+func renderModularCourse(ctx renderContext) error {
+	fsys := ctx.Root.FS()
 
 	modules, err := fs.ReadDir(fsys, "modules")
 	if err != nil {
@@ -408,7 +425,7 @@ func renderModularCourse(root *os.Root, output *os.Root, ctx renderContext) erro
 		modulePath := "modules/" + moduleName
 
 		// Process module manifest
-		err = renderModuleManifest(root, output, modulePath, moduleName)
+		err = renderModuleManifest(ctx.Root, ctx.Output, modulePath, moduleName)
 		if err != nil {
 			return fmt.Errorf("render module manifest %s: %w", moduleName, err)
 		}
@@ -428,7 +445,7 @@ func renderModularCourse(root *os.Root, output *os.Root, ctx renderContext) erro
 			lessonPath := modulePath + "/" + lessonName
 			outputPath := moduleName + "/" + lessonName
 
-			err = renderLesson(root, output, lessonPath, outputPath, ctx)
+			err = renderLesson(ctx, lessonPath, outputPath)
 			if err != nil {
 				return fmt.Errorf(
 					"render lesson %s in module %s: %w",
@@ -483,11 +500,11 @@ func renderModuleManifest(root *os.Root, output *os.Root, modulePath, moduleName
 }
 
 // renderLesson processes a lesson directory and renders its content
-func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath string, ctx renderContext) error {
-	fsys := root.FS()
+func renderLesson(ctx renderContext, lessonPath, outputPath string) error {
+	fsys := ctx.Root.FS()
 
 	// Create lesson directory first
-	err := output.Mkdir(outputPath, 0o755)
+	err := ctx.Output.Mkdir(outputPath, 0o755)
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
@@ -505,13 +522,13 @@ func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath string,
 	}
 
 	// Process lesson manifest through the same pipeline as other manifests
-	err = renderManifest(output, outputPath+"/00-index.md", lessonManifest)
+	err = renderManifest(ctx.Output, outputPath+"/00-index.md", lessonManifest)
 	if err != nil {
 		return err
 	}
 
 	// Create lesson-specific template instance with access to course-level templates
-	tpl, err := createLessonTemplate(root.FS(), lessonFS)
+	tpl, err := createLessonTemplate(ctx.Root.FS(), lessonFS)
 	if err != nil {
 		return fmt.Errorf("create lesson template: %w", err)
 	}
@@ -526,7 +543,7 @@ func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath string,
 		if file.IsDir() {
 			// Handle static directory
 			if file.Name() == "static" {
-				err = copyStaticFiles(root, output, lessonPath+"/static", outputPath+"/__static__")
+				err = copyStaticFiles(ctx.Root, ctx.Output, lessonPath+"/static", outputPath+"/__static__")
 				if err != nil {
 					return fmt.Errorf("copy static files: %w", err)
 				}
@@ -538,7 +555,7 @@ func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath string,
 		if strings.HasSuffix(fileName, ".md") && fileName != "index.md" {
 			outputFilePath := outputPath + "/" + fileName
 
-			outputFile, err := output.Create(outputFilePath)
+			outputFile, err := ctx.Output.Create(outputFilePath)
 			if err != nil {
 				return fmt.Errorf("create output file %s: %w", outputFilePath, err)
 			}
@@ -714,8 +731,8 @@ func createContentTemplate(fsys fs.FS) (*template.Template, error) {
 }
 
 // renderUnit processes a unit file and renders its content
-func renderUnit(root *os.Root, output *os.Root, unitPath, unitName string, ctx renderContext) error {
-	fsys := root.FS()
+func renderUnit(ctx renderContext, unitPath, unitName string) error {
+	fsys := ctx.Root.FS()
 
 	// Create a sub-filesystem constrained to the units directory
 	unitsFS, err := fs.Sub(fsys, unitPath)
@@ -724,13 +741,13 @@ func renderUnit(root *os.Root, output *os.Root, unitPath, unitName string, ctx r
 	}
 
 	// Create unit-specific template instance with access to training-level templates
-	tpl, err := createUnitTemplate(root.FS(), unitsFS)
+	tpl, err := createUnitTemplate(ctx.Root.FS(), unitsFS)
 	if err != nil {
 		return fmt.Errorf("create unit template: %w", err)
 	}
 
 	// Copy and process markdown files from units/ to the root
-	outputFile, err := output.Create(unitName)
+	outputFile, err := ctx.Output.Create(unitName)
 	if err != nil {
 		return fmt.Errorf("create unit file %s: %w", unitName, err)
 	}
