@@ -1,11 +1,13 @@
 package labx
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -51,9 +53,21 @@ func Content(root *os.Root, output *os.Root, channel string) error {
 		return err
 	}
 
-	data := templateData{
+	extraData, err := loadExtraTemplateData(root.FS())
+	if err != nil {
+		return fmt.Errorf("load extra template data: %w", err)
+	}
+
+	ctx := renderContext{
 		Channel:  channel,
 		Manifest: manifest,
+		Extra:    extraData,
+	}
+
+	data := templateData{
+		Channel:  ctx.Channel,
+		Manifest: ctx.Manifest,
+		Extra:    ctx.Extra,
 	}
 
 	err = tpl.ExecuteTemplate(indexFile, "index.md", data)
@@ -77,17 +91,17 @@ func Content(root *os.Root, output *os.Root, channel string) error {
 	// Handle content-specific rendering
 	switch manifest.Kind {
 	case content.KindChallenge:
-		err := renderChallenge(root, output, tpl, channel, manifest)
+		err := renderChallenge(root, output, tpl, ctx)
 		if err != nil {
 			return err
 		}
 	case content.KindCourse:
-		err := renderCourse(root, output, channel)
+		err := renderCourse(root, output, ctx)
 		if err != nil {
 			return err
 		}
 	case content.KindTraining:
-		err := renderTraining(root, output, tpl, channel, manifest)
+		err := renderTraining(root, output, tpl, ctx)
 		if err != nil {
 			return err
 		}
@@ -216,14 +230,22 @@ func renderManifest(
 	return writeManifest(outputFile, manifest)
 }
 
+// renderContext holds all the data needed for rendering templates
+type renderContext struct {
+	Channel  string
+	Manifest core.ContentManifest
+	Extra    map[string]any
+}
+
 // templateData holds the data passed to template executions
 type templateData struct {
 	Channel  string
 	Manifest core.ContentManifest
+	Extra    map[string]any
 }
 
 // renderChallenge handles challenge-specific rendering
-func renderChallenge(root *os.Root, output *os.Root, tpl *template.Template, channel string, manifest core.ContentManifest) error {
+func renderChallenge(root *os.Root, output *os.Root, tpl *template.Template, ctx renderContext) error {
 	hasSolution, err := fileExists(root.FS(), "solution.md")
 	if err != nil {
 		return err
@@ -237,8 +259,9 @@ func renderChallenge(root *os.Root, output *os.Root, tpl *template.Template, cha
 		defer solutionFile.Close()
 
 		data := templateData{
-			Channel:  channel,
-			Manifest: manifest,
+			Channel:  ctx.Channel,
+			Manifest: ctx.Manifest,
+			Extra:    ctx.Extra,
 		}
 
 		err = tpl.ExecuteTemplate(solutionFile, "solution.md", data)
@@ -251,7 +274,7 @@ func renderChallenge(root *os.Root, output *os.Root, tpl *template.Template, cha
 }
 
 // renderTraining handles training-specific rendering
-func renderTraining(root *os.Root, output *os.Root, tpl *template.Template, channel string, manifest core.ContentManifest) error {
+func renderTraining(root *os.Root, output *os.Root, tpl *template.Template, ctx renderContext) error {
 	fsys := root.FS()
 
 	// Process program.md if it exists
@@ -268,8 +291,9 @@ func renderTraining(root *os.Root, output *os.Root, tpl *template.Template, chan
 		defer programFile.Close()
 
 		data := templateData{
-			Channel:  channel,
-			Manifest: manifest,
+			Channel:  ctx.Channel,
+			Manifest: ctx.Manifest,
+			Extra:    ctx.Extra,
 		}
 
 		err = tpl.ExecuteTemplate(programFile, "program.md", data)
@@ -300,7 +324,7 @@ func renderTraining(root *os.Root, output *os.Root, tpl *template.Template, chan
 				continue
 			}
 
-			err = renderUnit(root, output, "units", unitName, channel, manifest)
+			err = renderUnit(root, output, "units", unitName, ctx)
 			if err != nil {
 				return fmt.Errorf("render unit %s: %w", unitName, err)
 			}
@@ -311,7 +335,7 @@ func renderTraining(root *os.Root, output *os.Root, tpl *template.Template, chan
 }
 
 // renderCourse handles rendering for both simple and modular courses
-func renderCourse(root *os.Root, output *os.Root, channel string) error {
+func renderCourse(root *os.Root, output *os.Root, ctx renderContext) error {
 	fsys := root.FS()
 
 	// Check if this is a simple course (has lessons directory)
@@ -332,16 +356,16 @@ func renderCourse(root *os.Root, output *os.Root, channel string) error {
 	}
 
 	if hasLessons {
-		return renderSimpleCourse(root, output, channel)
+		return renderSimpleCourse(root, output, ctx)
 	} else if hasModules {
-		return renderModularCourse(root, output, channel)
+		return renderModularCourse(root, output, ctx)
 	}
 
 	return nil
 }
 
 // renderSimpleCourse handles simple courses with a lessons directory
-func renderSimpleCourse(root *os.Root, output *os.Root, channel string) error {
+func renderSimpleCourse(root *os.Root, output *os.Root, ctx renderContext) error {
 	fsys := root.FS()
 
 	lessons, err := fs.ReadDir(fsys, "lessons")
@@ -357,7 +381,7 @@ func renderSimpleCourse(root *os.Root, output *os.Root, channel string) error {
 		lessonName := lesson.Name()
 		lessonPath := "lessons/" + lessonName
 
-		err = renderLesson(root, output, lessonPath, lessonName, channel)
+		err = renderLesson(root, output, lessonPath, lessonName, ctx)
 		if err != nil {
 			return fmt.Errorf("render lesson %s: %w", lessonName, err)
 		}
@@ -367,7 +391,7 @@ func renderSimpleCourse(root *os.Root, output *os.Root, channel string) error {
 }
 
 // renderModularCourse handles modular courses with a modules directory
-func renderModularCourse(root *os.Root, output *os.Root, channel string) error {
+func renderModularCourse(root *os.Root, output *os.Root, ctx renderContext) error {
 	fsys := root.FS()
 
 	modules, err := fs.ReadDir(fsys, "modules")
@@ -404,7 +428,7 @@ func renderModularCourse(root *os.Root, output *os.Root, channel string) error {
 			lessonPath := modulePath + "/" + lessonName
 			outputPath := moduleName + "/" + lessonName
 
-			err = renderLesson(root, output, lessonPath, outputPath, channel)
+			err = renderLesson(root, output, lessonPath, outputPath, ctx)
 			if err != nil {
 				return fmt.Errorf(
 					"render lesson %s in module %s: %w",
@@ -459,7 +483,7 @@ func renderModuleManifest(root *os.Root, output *os.Root, modulePath, moduleName
 }
 
 // renderLesson processes a lesson directory and renders its content
-func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath, channel string) error {
+func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath string, ctx renderContext) error {
 	fsys := root.FS()
 
 	// Create lesson directory first
@@ -475,7 +499,7 @@ func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath, channe
 	}
 
 	// Convert lesson manifest once and reuse
-	lessonManifest, err := convertContentManifest(lessonFS, channel)
+	lessonManifest, err := convertContentManifest(lessonFS, ctx.Channel)
 	if err != nil {
 		return fmt.Errorf("convert lesson manifest: %w", err)
 	}
@@ -521,8 +545,9 @@ func renderLesson(root *os.Root, output *os.Root, lessonPath, outputPath, channe
 			defer outputFile.Close()
 
 			data := templateData{
-				Channel:  channel,
+				Channel:  ctx.Channel,
 				Manifest: lessonManifest,
+				Extra:    ctx.Extra,
 			}
 
 			err = tpl.ExecuteTemplate(outputFile, fileName, data)
@@ -689,7 +714,7 @@ func createContentTemplate(fsys fs.FS) (*template.Template, error) {
 }
 
 // renderUnit processes a unit file and renders its content
-func renderUnit(root *os.Root, output *os.Root, unitPath, unitName string, channel string, manifest core.ContentManifest) error {
+func renderUnit(root *os.Root, output *os.Root, unitPath, unitName string, ctx renderContext) error {
 	fsys := root.FS()
 
 	// Create a sub-filesystem constrained to the units directory
@@ -712,8 +737,9 @@ func renderUnit(root *os.Root, output *os.Root, unitPath, unitName string, chann
 	defer outputFile.Close()
 
 	data := templateData{
-		Channel:  channel,
-		Manifest: manifest,
+		Channel:  ctx.Channel,
+		Manifest: ctx.Manifest,
+		Extra:    ctx.Extra,
 	}
 	err = tpl.ExecuteTemplate(outputFile, unitName, data)
 	if err != nil {
@@ -742,6 +768,73 @@ func createLessonTemplate(courseFS, lessonFS fs.FS) (*template.Template, error) 
 	}
 
 	return tpl, nil
+}
+
+// loadExtraTemplateData loads additional template data from JSON and YAML files in the data/ directory
+func loadExtraTemplateData(fsys fs.FS) (map[string]any, error) {
+	extraData := make(map[string]any)
+
+	// Check if data directory exists
+	dataDir := "data"
+	_, err := fs.Stat(fsys, dataDir)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			// No data directory, return empty map
+			return extraData, nil
+		}
+		return nil, fmt.Errorf("stat data directory: %w", err)
+	}
+
+	// Walk through the data directory
+	err = fs.WalkDir(fsys, dataDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip directories
+		if d.IsDir() {
+			return nil
+		}
+
+		// Only process JSON and YAML files
+		ext := strings.ToLower(filepath.Ext(d.Name()))
+		if ext != ".json" && ext != ".yaml" && ext != ".yml" {
+			return nil
+		}
+
+		// Read the file
+		fileData, err := fs.ReadFile(fsys, path)
+		if err != nil {
+			return fmt.Errorf("read file %s: %w", path, err)
+		}
+
+		// Parse based on extension
+		var data any
+		switch ext {
+		case ".json":
+			err = json.Unmarshal(fileData, &data)
+			if err != nil {
+				return fmt.Errorf("parse JSON file %s: %w", path, err)
+			}
+		case ".yaml", ".yml":
+			err = yaml.Unmarshal(fileData, &data)
+			if err != nil {
+				return fmt.Errorf("parse YAML file %s: %w", path, err)
+			}
+		}
+
+		// Use filename without extension as key
+		key := strings.TrimSuffix(d.Name(), ext)
+		extraData[key] = data
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("walk data directory: %w", err)
+	}
+
+	return extraData, nil
 }
 
 // createUnitTemplate creates a template instance for a specific unit with access to training-level templates
