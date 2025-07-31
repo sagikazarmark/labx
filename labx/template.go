@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -87,17 +88,21 @@ func loadExtraTemplateData(fsys fs.FS) (map[string]any, error) {
 }
 
 func renderRootTemplate(ctx renderContext, tpl *template.Template, name string) error {
-	outputFile, err := ctx.Output.Create(name)
-	if err != nil {
-		return err
-	}
-	defer outputFile.Close()
-
 	data := templateData{
 		Channel:  ctx.Channel,
 		Manifest: ctx.Manifest,
 		Extra:    ctx.Extra,
 	}
+
+	return renderTemplate(ctx.Output, name, tpl, name, data)
+}
+
+func renderTemplate(output *os.Root, outputPath string, tpl *template.Template, name string, data any) error {
+	outputFile, err := output.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("create output file %s: %w", outputPath, err)
+	}
+	defer outputFile.Close()
 
 	return tpl.ExecuteTemplate(outputFile, name, data)
 }

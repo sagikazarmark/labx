@@ -213,19 +213,13 @@ func renderLesson(ctx renderContext, lessonPath, outputPath string) error {
 		if strings.HasSuffix(fileName, ".md") && fileName != "index.md" {
 			outputFilePath := outputPath + "/" + fileName
 
-			outputFile, err := ctx.Output.Create(outputFilePath)
-			if err != nil {
-				return fmt.Errorf("create output file %s: %w", outputFilePath, err)
-			}
-			defer outputFile.Close()
-
 			data := templateData{
 				Channel:  ctx.Channel,
 				Manifest: lessonManifest,
 				Extra:    ctx.Extra,
 			}
 
-			err = tpl.ExecuteTemplate(outputFile, fileName, data)
+			err = renderTemplate(ctx.Output, outputFilePath, tpl, fileName, data)
 			if err != nil {
 				return fmt.Errorf("execute template %s: %w", fileName, err)
 			}
