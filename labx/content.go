@@ -230,22 +230,7 @@ func renderChallenge(ctx renderContext, tpl *template.Template) error {
 	}
 
 	if hasSolution {
-		solutionFile, err := ctx.Output.Create("solution.md")
-		if err != nil {
-			return err
-		}
-		defer solutionFile.Close()
-
-		data := templateData{
-			Channel:  ctx.Channel,
-			Manifest: ctx.Manifest,
-			Extra:    ctx.Extra,
-		}
-
-		err = tpl.ExecuteTemplate(solutionFile, "solution.md", data)
-		if err != nil {
-			return err
-		}
+		return renderRootTemplate(ctx, tpl, "solution.md")
 	}
 
 	return nil
@@ -262,22 +247,7 @@ func renderTraining(ctx renderContext, tpl *template.Template) error {
 	}
 
 	if hasProgramFile {
-		programFile, err := ctx.Output.Create("program.md")
-		if err != nil {
-			return err
-		}
-		defer programFile.Close()
-
-		data := templateData{
-			Channel:  ctx.Channel,
-			Manifest: ctx.Manifest,
-			Extra:    ctx.Extra,
-		}
-
-		err = tpl.ExecuteTemplate(programFile, "program.md", data)
-		if err != nil {
-			return err
-		}
+		return renderRootTemplate(ctx, tpl, "program.md")
 	}
 
 	// Copy static files if they exist at the training level
@@ -315,7 +285,7 @@ func renderTraining(ctx renderContext, tpl *template.Template) error {
 				continue
 			}
 
-			err = renderUnit(ctx, "units", unitName)
+			err = renderTrainingUnit(ctx, "units", unitName)
 			if err != nil {
 				return fmt.Errorf("render unit %s: %w", unitName, err)
 			}
@@ -704,8 +674,8 @@ func createContentTemplate(fsys fs.FS) (*template.Template, error) {
 	return parseTemplatePatterns(tpl, fsys, patterns)
 }
 
-// renderUnit processes a unit file and renders its content
-func renderUnit(ctx renderContext, unitPath, unitName string) error {
+// renderTrainingUnit processes a unit file and renders its content
+func renderTrainingUnit(ctx renderContext, unitPath, unitName string) error {
 	fsys := ctx.Root.FS()
 
 	// Create a sub-filesystem constrained to the units directory

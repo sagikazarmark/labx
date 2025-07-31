@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"text/template"
 
 	"github.com/goccy/go-yaml"
 )
@@ -83,4 +84,20 @@ func loadExtraTemplateData(fsys fs.FS) (map[string]any, error) {
 	}
 
 	return extraData, nil
+}
+
+func renderRootTemplate(ctx renderContext, tpl *template.Template, name string) error {
+	outputFile, err := ctx.Output.Create(name)
+	if err != nil {
+		return err
+	}
+	defer outputFile.Close()
+
+	data := templateData{
+		Channel:  ctx.Channel,
+		Manifest: ctx.Manifest,
+		Extra:    ctx.Extra,
+	}
+
+	return tpl.ExecuteTemplate(outputFile, name, data)
 }
