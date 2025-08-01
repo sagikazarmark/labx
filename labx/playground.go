@@ -118,8 +118,6 @@ func readAndRenderMarkdown(
 	channel string,
 	manifest api.PlaygroundManifest,
 ) (string, error) {
-	var templateName string
-
 	finder := finder.Finder{
 		Names: []string{"README.md", "manifest.md"},
 		Type:  finder.FileTypeFile,
@@ -133,6 +131,8 @@ func readAndRenderMarkdown(
 	if len(markdownFile) == 0 {
 		return "", nil
 	}
+
+	templateName := markdownFile[0]
 
 	// Create template and render
 	tpl, err := createPlaygroundTemplate(fsys)
