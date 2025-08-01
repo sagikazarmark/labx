@@ -201,7 +201,12 @@ func renderLesson(ctx renderContext, lessonPath, outputPath string) error {
 		if file.IsDir() {
 			// Handle static directory
 			if file.Name() == "static" {
-				err = copyStaticFiles(ctx.Root, ctx.Output, lessonPath+"/static", outputPath+"/__static__")
+				err = copyStaticFiles(
+					ctx.Root,
+					ctx.Output,
+					lessonPath+"/static",
+					outputPath+"/__static__",
+				)
 				if err != nil {
 					return fmt.Errorf("copy static files: %w", err)
 				}

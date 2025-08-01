@@ -48,7 +48,9 @@ func TestLoadExtraTemplateData(t *testing.T) {
 		{
 			name: "single YAML file",
 			fsys: fstest.MapFS{
-				"data/settings.yaml": &fstest.MapFile{Data: []byte("name: test\nversion: 1\nenabled: true")},
+				"data/settings.yaml": &fstest.MapFile{
+					Data: []byte("name: test\nversion: 1\nenabled: true"),
+				},
 			},
 			expected: map[string]any{
 				"settings": map[string]any{
@@ -62,9 +64,13 @@ func TestLoadExtraTemplateData(t *testing.T) {
 		{
 			name: "markdown files with different extensions",
 			fsys: fstest.MapFS{
-				"data/readme.md":     &fstest.MapFile{Data: []byte("# Welcome\n\nThis is a readme file.")},
-				"data/docs.markdown": &fstest.MapFile{Data: []byte("## Documentation\n\nSome docs here.")},
-				"data/empty.md":      &fstest.MapFile{Data: []byte("")},
+				"data/readme.md": &fstest.MapFile{
+					Data: []byte("# Welcome\n\nThis is a readme file."),
+				},
+				"data/docs.markdown": &fstest.MapFile{
+					Data: []byte("## Documentation\n\nSome docs here."),
+				},
+				"data/empty.md": &fstest.MapFile{Data: []byte("")},
 			},
 			expected: map[string]any{
 				"readme": "# Welcome\n\nThis is a readme file.",
@@ -76,11 +82,19 @@ func TestLoadExtraTemplateData(t *testing.T) {
 		{
 			name: "mixed file types including markdown",
 			fsys: fstest.MapFS{
-				"data/config.json":   &fstest.MapFile{Data: []byte(`{"api_url": "https://api.example.com"}`)},
-				"data/features.yaml": &fstest.MapFile{Data: []byte("feature_a: true\nfeature_b: false")},
-				"data/metadata.yml":  &fstest.MapFile{Data: []byte("author: John Doe\ncreated: 2024-01-01")},
-				"data/readme.md":     &fstest.MapFile{Data: []byte("# Project\nDocumentation here")},
-				"data/ignored.txt":   &fstest.MapFile{Data: []byte("this should be ignored")},
+				"data/config.json": &fstest.MapFile{
+					Data: []byte(`{"api_url": "https://api.example.com"}`),
+				},
+				"data/features.yaml": &fstest.MapFile{
+					Data: []byte("feature_a: true\nfeature_b: false"),
+				},
+				"data/metadata.yml": &fstest.MapFile{
+					Data: []byte("author: John Doe\ncreated: 2024-01-01"),
+				},
+				"data/readme.md": &fstest.MapFile{
+					Data: []byte("# Project\nDocumentation here"),
+				},
+				"data/ignored.txt": &fstest.MapFile{Data: []byte("this should be ignored")},
 			},
 			expected: map[string]any{
 				"config": map[string]any{
@@ -206,9 +220,13 @@ func TestLoadExtraTemplateDataSpecialCases(t *testing.T) {
 
 	t.Run("markdown never errors", func(t *testing.T) {
 		fsys := fstest.MapFS{
-			"data/any-content.md": &fstest.MapFile{Data: []byte("This could be anything: {[}]@#$%^&*()")},
-			"data/unicode.md":     &fstest.MapFile{Data: []byte("🚀 Unicode: αβγ\n\nCode: `console.log('hello');`")},
-			"data/whitespace.md":  &fstest.MapFile{Data: []byte("   \n\t\n   ")},
+			"data/any-content.md": &fstest.MapFile{
+				Data: []byte("This could be anything: {[}]@#$%^&*()"),
+			},
+			"data/unicode.md": &fstest.MapFile{
+				Data: []byte("🚀 Unicode: αβγ\n\nCode: `console.log('hello');`"),
+			},
+			"data/whitespace.md": &fstest.MapFile{Data: []byte("   \n\t\n   ")},
 		}
 
 		result, err := loadExtraTemplateData(fsys)

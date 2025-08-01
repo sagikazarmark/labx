@@ -51,6 +51,7 @@ func main() {
 		os.Exit(1)
 	}
 }
+
 func loadConfig() (*config.Config, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {

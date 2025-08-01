@@ -79,7 +79,6 @@ func loadExtraTemplateData(fsys fs.FS) (map[string]any, error) {
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("walk data directory: %w", err)
 	}
@@ -97,7 +96,13 @@ func renderRootTemplate(ctx renderContext, tpl *template.Template, name string) 
 	return renderTemplate(ctx.Output, name, tpl, name, data)
 }
 
-func renderTemplate(output *os.Root, outputPath string, tpl *template.Template, name string, data any) error {
+func renderTemplate(
+	output *os.Root,
+	outputPath string,
+	tpl *template.Template,
+	name string,
+	data any,
+) error {
 	outputFile, err := output.Create(outputPath)
 	if err != nil {
 		return fmt.Errorf("create output file %s: %w", outputPath, err)

@@ -32,8 +32,8 @@ type ContentManifest struct {
 
 	// Content embedding
 	Challenges map[string]struct{}    `yaml:"challenges,omitempty" json:"challenges,omitempty"`
-	Tutorials  map[string]struct{}    `yaml:"tutorials,omitempty" json:"tutorials,omitempty"`
-	Courses    map[string]CourseEmbed `yaml:"courses,omitempty" json:"courses,omitempty"`
+	Tutorials  map[string]struct{}    `yaml:"tutorials,omitempty"  json:"tutorials,omitempty"`
+	Courses    map[string]CourseEmbed `yaml:"courses,omitempty"    json:"courses,omitempty"`
 
 	// Training specific fields
 	WorkingTitle string `yaml:"workingTitle,omitempty" json:"workingTitle,omitempty"`

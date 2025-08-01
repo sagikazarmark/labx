@@ -11,6 +11,8 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
+	"github.com/sagikazarmark/go-finder"
+
 	"github.com/sagikazarmark/labx/core"
 )
 
@@ -102,30 +104,11 @@ func copyStaticFiles(root *os.Root, output *os.Root, sourcePath, destPath string
 
 // dirExists checks if a directory exists
 func dirExists(fsys fs.FS, path string) (bool, error) {
-	stat, err := fs.Stat(fsys, path)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return false, nil
-		}
-		return false, err
-	}
-	return stat.IsDir(), nil
+	return finder.Exists(fsys, path, finder.FileTypeDir)
 }
 
 func fileExists(fsys fs.FS, path string) (bool, error) {
-	stat, err := fs.Stat(fsys, path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-
-	if stat.IsDir() {
-		return false, nil
-	}
-
-	return true, nil
+	return finder.Exists(fsys, path, finder.FileTypeFile)
 }
 
 func writeManifest[T api.PlaygroundManifest | core.ContentManifest](w io.Writer, manifest T) error {

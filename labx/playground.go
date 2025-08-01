@@ -2,15 +2,17 @@ package labx
 
 import (
 	"bytes"
-	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
 	"strings"
+	"text/template"
 
 	"github.com/goccy/go-yaml"
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
+	"github.com/sagikazarmark/go-finder"
 
 	"github.com/sagikazarmark/labx/extended"
 )
@@ -100,7 +102,7 @@ func convertPlaygroundManifest(fsys fs.FS, channel string) (api.PlaygroundManife
 	manifest := extendedManifest.Convert()
 
 	if manifest.Markdown == "" {
-		markdown, err := readMarkdown(fsys)
+		markdown, err := readAndRenderMarkdown(fsys, channel, manifest)
 		if err != nil {
 			return manifest, err
 		}
@@ -111,22 +113,76 @@ func convertPlaygroundManifest(fsys fs.FS, channel string) (api.PlaygroundManife
 	return manifest, err
 }
 
-func readMarkdown(fsys fs.FS) (string, error) {
-	content, err := fs.ReadFile(fsys, "manifest.md")
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return "", err
-	} else if err == nil {
-		return string(content), nil
+func readAndRenderMarkdown(
+	fsys fs.FS,
+	channel string,
+	manifest api.PlaygroundManifest,
+) (string, error) {
+	var templateName string
+
+	finder := finder.Finder{
+		Names: []string{"README.md", "manifest.md"},
+		Type:  finder.FileTypeFile,
 	}
 
-	content, err = fs.ReadFile(fsys, "README.md")
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+	markdownFile, err := finder.Find(fsys)
+	if err != nil {
 		return "", err
-	} else if err == nil {
-		return string(content), nil
 	}
 
-	return "", nil
+	if len(markdownFile) == 0 {
+		return "", nil
+	}
+
+	// Create template and render
+	tpl, err := createPlaygroundTemplate(fsys)
+	if err != nil {
+		return "", fmt.Errorf("create playground template: %w", err)
+	}
+
+	// Load extra template data
+	extraData, err := loadExtraTemplateData(fsys)
+	if err != nil {
+		return "", fmt.Errorf("load extra template data: %w", err)
+	}
+
+	// Create template data for playground
+	data := playgroundTemplateData{
+		Channel:  channel,
+		Manifest: manifest,
+		Extra:    extraData,
+	}
+
+	// Execute the template
+	var buf bytes.Buffer
+	err = tpl.ExecuteTemplate(&buf, templateName, data)
+	if err != nil {
+		return "", fmt.Errorf("execute markdown template %s: %w", templateName, err)
+	}
+
+	return buf.String(), nil
+}
+
+// playgroundTemplateData holds the data passed to playground template executions
+type playgroundTemplateData struct {
+	Channel  string
+	Manifest api.PlaygroundManifest
+	Extra    map[string]any
+}
+
+// createPlaygroundTemplate creates a template instance for playground-level rendering
+func createPlaygroundTemplate(fsys fs.FS) (*template.Template, error) {
+	tplFuncs := createTemplateFuncs(fsys)
+	tpl := template.New("").Funcs(tplFuncs)
+
+	// Parse playground-level patterns
+	patterns := []string{
+		"manifest.md",
+		"README.md",
+		"templates/*.md",
+	}
+
+	return parseTemplatePatterns(tpl, fsys, patterns)
 }
 
 func getPlaygroundManifest(name string) (api.PlaygroundManifest, error) {
