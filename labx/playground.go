@@ -119,6 +119,7 @@ func readAndRenderMarkdown(
 	manifest api.PlaygroundManifest,
 ) (string, error) {
 	finder := finder.Finder{
+		Paths: []string{""},
 		Names: []string{"README.md", "manifest.md"},
 		Type:  finder.FileTypeFile,
 	}
