@@ -3,6 +3,7 @@ module github.com/sagikazarmark/labx
 go 1.24.1
 
 require (
+	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/go-sprout/sprout v1.0.1
 	github.com/goccy/go-yaml v1.18.0
 	github.com/google/go-containerregistry v0.20.6

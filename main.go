@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/iximiuz/labctl/api"
 	"github.com/spf13/cobra"
 
 	xcmd "github.com/sagikazarmark/labx/cmd"
@@ -12,10 +11,10 @@ import (
 )
 
 func main() {
-	var client *api.Client
+	cli := xcmd.NewCli()
 
 	cmd := &cobra.Command{
-		Use:     "labx <generate>",
+		Use:     "labx <command>",
 		Short:   "labx - opinionated tools for iximiuz Labs content",
 		Version: version,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -27,22 +26,15 @@ func main() {
 				return err
 			}
 
-			client = api.NewClient(api.ClientOptions{
-				BaseURL:     cfg.BaseURL,
-				APIBaseURL:  cfg.APIBaseURL,
-				SessionID:   cfg.SessionID,
-				AccessToken: cfg.AccessToken,
-				UserAgent:   fmt.Sprintf("labx/%s", version),
-			})
+			cli.Init(cfg, version)
 
 			return nil
 		},
 	}
 
-	_ = client
-
 	cmd.AddCommand(
 		xcmd.NewGenerateCommand(),
+		xcmd.NewCheckTasksCommand(cli),
 	)
 
 	err := cmd.Execute()
