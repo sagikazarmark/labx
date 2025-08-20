@@ -17,8 +17,8 @@ import (
 	"github.com/sagikazarmark/labx/extended"
 )
 
-func Playground(root *os.Root, output *os.Root, channel string) error {
-	manifest, err := convertPlaygroundManifest(root.FS(), channel)
+func Playground(root *os.Root, output *os.Root, channel string, dataDirs []string) error {
+	manifest, err := convertPlaygroundManifest(root.FS(), channel, dataDirs)
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func Playground(root *os.Root, output *os.Root, channel string) error {
 	return nil
 }
 
-func convertPlaygroundManifest(fsys fs.FS, channel string) (api.PlaygroundManifest, error) {
+func convertPlaygroundManifest(fsys fs.FS, channel string, dataDirs []string) (api.PlaygroundManifest, error) {
 	manifestFile, err := fsys.Open("manifest.yaml")
 	if err != nil {
 		return api.PlaygroundManifest{}, err
@@ -102,7 +102,7 @@ func convertPlaygroundManifest(fsys fs.FS, channel string) (api.PlaygroundManife
 	manifest := extendedManifest.Convert()
 
 	if manifest.Markdown == "" {
-		markdown, err := readAndRenderMarkdown(fsys, channel, manifest)
+		markdown, err := readAndRenderMarkdown(fsys, channel, manifest, dataDirs)
 		if err != nil {
 			return manifest, err
 		}
@@ -117,6 +117,7 @@ func readAndRenderMarkdown(
 	fsys fs.FS,
 	channel string,
 	manifest api.PlaygroundManifest,
+	dataDirs []string,
 ) (string, error) {
 	finder := finder.Finder{
 		Paths: []string{""},
@@ -142,7 +143,7 @@ func readAndRenderMarkdown(
 	}
 
 	// Load extra template data
-	extraData, err := loadExtraTemplateData(fsys)
+	extraData, err := loadExtraTemplateDataFromDirs(fsys, dataDirs)
 	if err != nil {
 		return "", fmt.Errorf("load extra template data: %w", err)
 	}

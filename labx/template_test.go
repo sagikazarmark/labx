@@ -2,6 +2,7 @@ package labx
 
 import (
 	"fmt"
+	"io/fs"
 	"testing"
 	"testing/fstest"
 
@@ -265,4 +266,151 @@ func TestLoadExtraTemplateDataPerformance(t *testing.T) {
 	assert.Equal(t, map[string]any{"id": float64(0), "name": "config0"}, result["config0"])
 	assert.Equal(t, map[string]any{"id": uint64(25), "name": "settings25"}, result["settings25"])
 	assert.Equal(t, "# Document 49\n\nContent for document 49", result["doc49"])
+}
+
+func TestLoadExtraTemplateDataFromDirs(t *testing.T) {
+	testCases := []struct {
+		name         string
+		rootFS       fstest.MapFS
+		externalDirs []fs.FS
+		expected     map[string]any
+		wantErr      bool
+	}{
+		{
+			name: "no additional data directories",
+			rootFS: fstest.MapFS{
+				"data/config.json": &fstest.MapFile{Data: []byte(`{"source": "root"}`)},
+			},
+			externalDirs: []fs.FS{},
+			expected: map[string]any{
+				"config": map[string]any{
+					"source": "root",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "root data directory has precedence",
+			rootFS: fstest.MapFS{
+				"data/config.json": &fstest.MapFile{Data: []byte(`{"source": "root", "priority": "high"}`)},
+			},
+			externalDirs: []fs.FS{
+				fstest.MapFS{
+					"config.json": &fstest.MapFile{Data: []byte(`{"source": "external", "value": 100}`)},
+				},
+			},
+			expected: map[string]any{
+				"config": map[string]any{
+					"source":   "root",
+					"priority": "high",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "multiple data directories with precedence",
+			rootFS: fstest.MapFS{
+				"data/final.json": &fstest.MapFile{Data: []byte(`{"source": "root"}`)},
+			},
+			externalDirs: []fs.FS{
+				fstest.MapFS{
+					"config.json": &fstest.MapFile{Data: []byte(`{"source": "dir1", "dir": 1}`)},
+					"shared.json": &fstest.MapFile{Data: []byte(`{"from": "dir1"}`)},
+				},
+				fstest.MapFS{
+					"config.json": &fstest.MapFile{Data: []byte(`{"source": "dir2", "dir": 2}`)},
+					"shared.json": &fstest.MapFile{Data: []byte(`{"from": "dir2"}`)},
+					"unique.yaml": &fstest.MapFile{Data: []byte(`name: unique`)},
+				},
+			},
+			expected: map[string]any{
+				"config": map[string]any{
+					"source": "dir2",
+					"dir":    float64(2),
+				},
+				"shared": map[string]any{
+					"from": "dir2",
+				},
+				"unique": map[string]any{
+					"name": "unique",
+				},
+				"final": map[string]any{
+					"source": "root",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "root overrides external directories",
+			rootFS: fstest.MapFS{
+				"data/config.json": &fstest.MapFile{Data: []byte(`{"env": "production", "debug": false}`)},
+			},
+			externalDirs: []fs.FS{
+				fstest.MapFS{
+					"config.json": &fstest.MapFile{Data: []byte(`{"env": "development", "debug": true, "extra": "value"}`)},
+				},
+			},
+			expected: map[string]any{
+				"config": map[string]any{
+					"env":   "production",
+					"debug": false,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "mixed file types from multiple directories",
+			rootFS: fstest.MapFS{
+				"data/root.md": &fstest.MapFile{Data: []byte("# Root Documentation")},
+			},
+			externalDirs: []fs.FS{
+				fstest.MapFS{
+					"config.json":   &fstest.MapFile{Data: []byte(`{"external": true}`)},
+					"settings.yaml": &fstest.MapFile{Data: []byte(`timeout: 30`)},
+					"readme.md":     &fstest.MapFile{Data: []byte("External readme")},
+				},
+			},
+			expected: map[string]any{
+				"config": map[string]any{
+					"external": true,
+				},
+				"settings": map[string]any{
+					"timeout": uint64(30),
+				},
+				"readme": "External readme",
+				"root":   "# Root Documentation",
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty external directories are skipped",
+			rootFS: fstest.MapFS{
+				"data/config.json": &fstest.MapFile{Data: []byte(`{"source": "root"}`)},
+			},
+			externalDirs: []fs.FS{
+				fstest.MapFS{}, // Empty filesystem
+				fstest.MapFS{}, // Another empty filesystem
+			},
+			expected: map[string]any{
+				"config": map[string]any{
+					"source": "root",
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			result, err := loadExtraTemplateDataFromFilesystems(testCase.rootFS, testCase.externalDirs)
+
+			if testCase.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, testCase.expected, result)
+		})
+	}
 }

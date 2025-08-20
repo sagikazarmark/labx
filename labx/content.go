@@ -21,7 +21,7 @@ import (
 	"github.com/sagikazarmark/labx/pkg/sproutx"
 )
 
-func Content(root *os.Root, output *os.Root, channel string) error {
+func Content(root *os.Root, output *os.Root, channel string, dataDirs []string) error {
 	manifest, err := convertContentManifest(root.FS(), channel)
 	if err != nil {
 		return err
@@ -50,7 +50,7 @@ func Content(root *os.Root, output *os.Root, channel string) error {
 		return err
 	}
 
-	extraData, err := loadExtraTemplateData(root.FS())
+	extraData, err := loadExtraTemplateDataFromDirs(root.FS(), dataDirs)
 	if err != nil {
 		return fmt.Errorf("load extra template data: %w", err)
 	}

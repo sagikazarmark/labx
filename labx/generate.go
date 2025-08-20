@@ -12,7 +12,7 @@ type manifestKind struct {
 }
 
 // Generate processes content based on the manifest kind, routing to appropriate handlers
-func Generate(root *os.Root, output *os.Root, channel string) error {
+func Generate(root *os.Root, output *os.Root, channel string, dataDirs []string) error {
 	// Read and parse just the kind field from manifest.yaml
 	manifestFile, err := root.FS().Open("manifest.yaml")
 	if err != nil {
@@ -30,9 +30,9 @@ func Generate(root *os.Root, output *os.Root, channel string) error {
 
 	// Route based on kind
 	if kind.Kind == "playground" {
-		return Playground(root, output, channel)
+		return Playground(root, output, channel, dataDirs)
 	}
 
 	// Everything else goes through content processing
-	return Content(root, output, channel)
+	return Content(root, output, channel, dataDirs)
 }

@@ -14,10 +14,11 @@ import (
 const defaultOutput = "dist"
 
 type generateOptions struct {
-	path    string
-	output  string
-	clear   bool
-	channel string
+	path     string
+	output   string
+	clear    bool
+	channel  string
+	dataDirs []string
 }
 
 func NewGenerateCommand() *cobra.Command {
@@ -71,6 +72,13 @@ func addFlags(flags *pflag.FlagSet, opts *generateOptions) {
 		"dev",
 		`Which channel to use`,
 	)
+
+	flags.StringSliceVar(
+		&opts.dataDirs,
+		"data-dir",
+		[]string{},
+		`Additional data directories to load JSON files from (can be specified multiple times)`,
+	)
 }
 
 func runGenerate(opts *generateOptions) error {
@@ -79,7 +87,7 @@ func runGenerate(opts *generateOptions) error {
 		return err
 	}
 
-	err = labx.Generate(root, outputRoot, opts.channel)
+	err = labx.Generate(root, outputRoot, opts.channel, opts.dataDirs)
 	if err != nil {
 		return err
 	}
