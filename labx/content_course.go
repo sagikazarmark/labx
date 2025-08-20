@@ -186,7 +186,7 @@ func renderLesson(ctx renderContext, lessonPath, outputPath string) error {
 	}
 
 	// Create lesson-specific template instance with access to course-level templates
-	tpl, err := createLessonTemplate(ctx.Root.FS(), lessonFS)
+	tpl, err := createLessonTemplateFromGlobal(ctx.Root.FS(), lessonFS, ctx.BaseTemplate)
 	if err != nil {
 		return fmt.Errorf("create lesson template: %w", err)
 	}
@@ -234,10 +234,24 @@ func renderLesson(ctx renderContext, lessonPath, outputPath string) error {
 	return nil
 }
 
-// createLessonTemplate creates a template instance for a specific lesson with access to course-level templates
-func createLessonTemplate(courseFS, lessonFS fs.FS) (*template.Template, error) {
-	// Start with lesson content template (includes lesson templates and functions)
-	tpl, err := createContentTemplate(lessonFS)
+// createLessonTemplateFromGlobal creates a template instance for a specific lesson with access to course-level templates
+func createLessonTemplateFromGlobal(
+	courseFS, lessonFS fs.FS,
+	baseTemplate *template.Template,
+) (*template.Template, error) {
+	// Clone the global template to avoid conflicts
+	tpl, err := baseTemplate.Clone()
+	if err != nil {
+		return nil, fmt.Errorf("clone global template: %w", err)
+	}
+
+	// Parse lesson content patterns
+	lessonPatterns := []string{
+		"*.md",
+		"templates/*.md",
+	}
+
+	tpl, err = parseTemplatePatterns(tpl, lessonFS, lessonPatterns)
 	if err != nil {
 		return nil, fmt.Errorf("create lesson content template: %w", err)
 	}

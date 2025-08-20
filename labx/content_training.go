@@ -77,7 +77,7 @@ func renderTrainingUnit(ctx renderContext, unitPath, unitName string) error {
 	}
 
 	// Create unit-specific template instance with access to training-level templates
-	tpl, err := createTrainingUnitTemplate(ctx.Root.FS(), unitsFS)
+	tpl, err := createTrainingUnitTemplate(ctx.Root.FS(), unitsFS, ctx.BaseTemplate)
 	if err != nil {
 		return fmt.Errorf("create unit template: %w", err)
 	}
@@ -103,9 +103,23 @@ func renderTrainingUnit(ctx renderContext, unitPath, unitName string) error {
 }
 
 // createTrainingUnitTemplate creates a template instance for a specific unit with access to training-level templates
-func createTrainingUnitTemplate(trainingFS, unitsFS fs.FS) (*template.Template, error) {
-	// Start with units content template (includes unit templates and functions)
-	tpl, err := createContentTemplate(unitsFS)
+func createTrainingUnitTemplate(
+	trainingFS, unitsFS fs.FS,
+	baseTemplate *template.Template,
+) (*template.Template, error) {
+	// Clone the global template to avoid conflicts
+	tpl, err := baseTemplate.Clone()
+	if err != nil {
+		return nil, fmt.Errorf("clone global template: %w", err)
+	}
+
+	// Parse units content patterns
+	unitsPatterns := []string{
+		"*.md",
+		"templates/*.md",
+	}
+
+	tpl, err = parseTemplatePatterns(tpl, unitsFS, unitsPatterns)
 	if err != nil {
 		return nil, fmt.Errorf("create unit content template: %w", err)
 	}

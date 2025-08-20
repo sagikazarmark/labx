@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
-	"os"
 	"os/exec"
 	"strings"
 	"text/template"
@@ -17,30 +16,35 @@ import (
 	"github.com/sagikazarmark/labx/extended"
 )
 
-func Playground(root *os.Root, output *os.Root, channel string, dataDirs []string) error {
-	manifest, err := convertPlaygroundManifest(root.FS(), channel, dataDirs)
+func Playground(ctx GenerateContext) error {
+	manifest, err := convertPlaygroundManifest(
+		ctx.Root.FS(),
+		ctx.Channel,
+		ctx.BaseTemplate,
+		ctx.ExtraData,
+	)
 	if err != nil {
 		return err
 	}
 
-	if strings.ToLower(channel) == "beta" {
+	if strings.ToLower(ctx.Channel) == "beta" {
 		manifest.Markdown = betaNotice + manifest.Markdown
 	}
 
 	// Create the manifest.yaml file
-	err = renderManifest(output, "manifest.yaml", manifest)
+	err = renderManifest(ctx.Output, "manifest.yaml", manifest)
 	if err != nil {
 		return err
 	}
 
 	// Copy static files if they exist
-	hasStatic, err := dirExists(root.FS(), "static")
+	hasStatic, err := dirExists(ctx.Root.FS(), "static")
 	if err != nil {
 		return err
 	}
 
 	if hasStatic {
-		err = copyStaticFiles(root, output, "static", "__static__")
+		err = copyStaticFiles(ctx.Root, ctx.Output, "static", "__static__")
 		if err != nil {
 			return err
 		}
@@ -49,7 +53,12 @@ func Playground(root *os.Root, output *os.Root, channel string, dataDirs []strin
 	return nil
 }
 
-func convertPlaygroundManifest(fsys fs.FS, channel string, dataDirs []string) (api.PlaygroundManifest, error) {
+func convertPlaygroundManifest(
+	fsys fs.FS,
+	channel string,
+	baseTemplate *template.Template,
+	extraData map[string]any,
+) (api.PlaygroundManifest, error) {
 	manifestFile, err := fsys.Open("manifest.yaml")
 	if err != nil {
 		return api.PlaygroundManifest{}, err
@@ -102,7 +111,7 @@ func convertPlaygroundManifest(fsys fs.FS, channel string, dataDirs []string) (a
 	manifest := extendedManifest.Convert()
 
 	if manifest.Markdown == "" {
-		markdown, err := readAndRenderMarkdown(fsys, channel, manifest, dataDirs)
+		markdown, err := readAndRenderMarkdown(fsys, channel, manifest, baseTemplate, extraData)
 		if err != nil {
 			return manifest, err
 		}
@@ -117,7 +126,8 @@ func readAndRenderMarkdown(
 	fsys fs.FS,
 	channel string,
 	manifest api.PlaygroundManifest,
-	dataDirs []string,
+	baseTemplate *template.Template,
+	extraData map[string]any,
 ) (string, error) {
 	finder := finder.Finder{
 		Paths: []string{""},
@@ -136,16 +146,10 @@ func readAndRenderMarkdown(
 
 	templateName := markdownFile[0]
 
-	// Create template and render
-	tpl, err := createPlaygroundTemplate(fsys)
+	// Create template by copying global template and adding playground-specific ones
+	tpl, err := createPlaygroundTemplate(fsys, baseTemplate)
 	if err != nil {
 		return "", fmt.Errorf("create playground template: %w", err)
-	}
-
-	// Load extra template data
-	extraData, err := loadExtraTemplateDataFromDirs(fsys, dataDirs)
-	if err != nil {
-		return "", fmt.Errorf("load extra template data: %w", err)
 	}
 
 	// Create template data for playground
@@ -172,16 +176,23 @@ type playgroundTemplateData struct {
 	Extra    map[string]any
 }
 
-// createPlaygroundTemplate creates a template instance for playground-level rendering
-func createPlaygroundTemplate(fsys fs.FS) (*template.Template, error) {
-	tplFuncs := createTemplateFuncs(fsys)
-	tpl := template.New("").Funcs(tplFuncs)
+// createPlaygroundTemplate creates a playground template by copying global templates and adding local ones
+func createPlaygroundTemplate(
+	fsys fs.FS,
+	baseTemplate *template.Template,
+) (*template.Template, error) {
+	// Clone the global template to avoid conflicts
+	tpl, err := baseTemplate.Clone()
+	if err != nil {
+		return nil, fmt.Errorf("clone global template: %w", err)
+	}
 
-	// Parse playground-level patterns
+	// Parse local playground-level patterns (these can override global templates)
 	patterns := []string{
 		"manifest.md",
 		"README.md",
 		"templates/*.md",
+		"templates/**/*.md",
 	}
 
 	return parseTemplatePatterns(tpl, fsys, patterns)

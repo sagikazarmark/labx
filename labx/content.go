@@ -8,9 +8,6 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/go-sprout/sprout"
-	sproutstrings "github.com/go-sprout/sprout/registry/strings"
-	sprouttime "github.com/go-sprout/sprout/registry/time"
 	"github.com/goccy/go-yaml"
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
@@ -18,16 +15,15 @@ import (
 
 	"github.com/sagikazarmark/labx/core"
 	"github.com/sagikazarmark/labx/extended"
-	"github.com/sagikazarmark/labx/pkg/sproutx"
 )
 
-func Content(root *os.Root, output *os.Root, channel string, dataDirs []string) error {
-	manifest, err := convertContentManifest(root.FS(), channel)
+func Content(ctx GenerateContext) error {
+	manifest, err := convertContentManifest(ctx.Root.FS(), ctx.Channel)
 	if err != nil {
 		return err
 	}
 
-	indexFile, err := output.Create("index.md")
+	indexFile, err := ctx.Output.Create("index.md")
 	if err != nil {
 		return err
 	}
@@ -38,35 +34,32 @@ func Content(root *os.Root, output *os.Root, channel string, dataDirs []string) 
 		return err
 	}
 
-	if strings.ToLower(channel) == "beta" {
+	if strings.ToLower(ctx.Channel) == "beta" {
 		_, err = io.WriteString(indexFile, betaNotice)
 		if err != nil {
 			return err
 		}
 	}
 
-	tpl, err := createContentTemplate(root.FS())
+	// Copy global templates and add local content templates
+	tpl, err := createContentTemplateFromGlobal(ctx.BaseTemplate, ctx.Root.FS())
 	if err != nil {
 		return err
 	}
 
-	extraData, err := loadExtraTemplateDataFromDirs(root.FS(), dataDirs)
-	if err != nil {
-		return fmt.Errorf("load extra template data: %w", err)
-	}
-
-	ctx := renderContext{
-		Root:     root,
-		Output:   output,
-		Channel:  channel,
-		Manifest: manifest,
-		Extra:    extraData,
+	renderCtx := renderContext{
+		Root:         ctx.Root,
+		Output:       ctx.Output,
+		Channel:      ctx.Channel,
+		Manifest:     manifest,
+		Extra:        ctx.ExtraData,
+		BaseTemplate: ctx.BaseTemplate,
 	}
 
 	data := templateData{
 		Channel:  ctx.Channel,
-		Manifest: ctx.Manifest,
-		Extra:    ctx.Extra,
+		Manifest: manifest,
+		Extra:    ctx.ExtraData,
 	}
 
 	err = tpl.ExecuteTemplate(indexFile, "index.md", data)
@@ -75,13 +68,13 @@ func Content(root *os.Root, output *os.Root, channel string, dataDirs []string) 
 	}
 
 	// Copy static files if they exist at the root level
-	hasStatic, err := dirExists(root.FS(), "static")
+	hasStatic, err := dirExists(ctx.Root.FS(), "static")
 	if err != nil {
 		return err
 	}
 
 	if hasStatic {
-		err = copyStaticFiles(root, output, "static", "__static__")
+		err = copyStaticFiles(ctx.Root, ctx.Output, "static", "__static__")
 		if err != nil {
 			return fmt.Errorf("copy static files: %w", err)
 		}
@@ -90,17 +83,17 @@ func Content(root *os.Root, output *os.Root, channel string, dataDirs []string) 
 	// Handle content-specific rendering
 	switch manifest.Kind {
 	case content.KindChallenge:
-		err := renderChallenge(ctx, tpl)
+		err := renderChallenge(renderCtx, tpl)
 		if err != nil {
 			return err
 		}
 	case content.KindCourse:
-		err := renderCourse(ctx)
+		err := renderCourse(renderCtx)
 		if err != nil {
 			return err
 		}
 	case content.KindTraining:
-		err := renderTraining(ctx, tpl)
+		err := renderTraining(renderCtx, tpl)
 		if err != nil {
 			return err
 		}
@@ -207,11 +200,12 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 
 // renderContext holds all the data needed for rendering templates
 type renderContext struct {
-	Root     *os.Root
-	Output   *os.Root
-	Channel  string
-	Manifest core.ContentManifest
-	Extra    map[string]any
+	Root         *os.Root
+	Output       *os.Root
+	Channel      string
+	Manifest     core.ContentManifest
+	Extra        map[string]any
+	BaseTemplate *template.Template
 }
 
 // templateData holds the data passed to template executions
@@ -261,48 +255,18 @@ func (w *frontMatterWriter) Write(p []byte) (n int, err error) {
 	return w.writer.Write(p)
 }
 
-// createTemplateFuncs creates template functions for the given filesystem
-func createTemplateFuncs(fsys fs.FS) template.FuncMap {
-	return sprout.New(
-		sprout.WithRegistries(
-			sproutstrings.NewRegistry(),
-			sproutx.NewFSRegistry(fsys),
-			sproutx.NewStringsRegistry(),
-			sprouttime.NewRegistry(),
-		),
-	).Build()
-}
-
-// parseTemplatePatterns parses template patterns from a filesystem into a template
-func parseTemplatePatterns(
-	tpl *template.Template,
+// createContentTemplateFromGlobal creates a content template by copying global templates and adding local ones
+func createContentTemplateFromGlobal(
+	globalTpl *template.Template,
 	fsys fs.FS,
-	patterns []string,
 ) (*template.Template, error) {
-	for _, pattern := range patterns {
-		matches, err := fs.Glob(fsys, pattern)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(matches) == 0 {
-			continue
-		}
-
-		tpl, err = tpl.ParseFS(fsys, pattern)
-		if err != nil {
-			return nil, fmt.Errorf("parse templates with pattern %s: %w", pattern, err)
-		}
+	// Clone the global template to avoid conflicts
+	tpl, err := globalTpl.Clone()
+	if err != nil {
+		return nil, fmt.Errorf("clone global template: %w", err)
 	}
-	return tpl, nil
-}
 
-// createContentTemplate creates a template instance for content-level rendering
-func createContentTemplate(fsys fs.FS) (*template.Template, error) {
-	tplFuncs := createTemplateFuncs(fsys)
-	tpl := template.New("").Funcs(tplFuncs)
-
-	// Parse content-level patterns
+	// Parse local content-level patterns (these can override global templates)
 	patterns := []string{
 		"*.md",
 		"templates/*.md",

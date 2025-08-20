@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -14,11 +15,12 @@ import (
 const defaultOutput = "dist"
 
 type generateOptions struct {
-	path     string
-	output   string
-	clear    bool
-	channel  string
-	dataDirs []string
+	path         string
+	output       string
+	clear        bool
+	channel      string
+	templateDirs []string
+	dataDirs     []string
 }
 
 func NewGenerateCommand() *cobra.Command {
@@ -74,6 +76,13 @@ func addFlags(flags *pflag.FlagSet, opts *generateOptions) {
 	)
 
 	flags.StringSliceVar(
+		&opts.templateDirs,
+		"template-dir",
+		[]string{},
+		`Global template directories to load .md files from (loaded before content templates, can be specified multiple times)`,
+	)
+
+	flags.StringSliceVar(
 		&opts.dataDirs,
 		"data-dir",
 		[]string{},
@@ -87,7 +96,25 @@ func runGenerate(opts *generateOptions) error {
 		return err
 	}
 
-	err = labx.Generate(root, outputRoot, opts.channel, opts.dataDirs)
+	var templateFSs []fs.FS
+	for _, templateDir := range opts.templateDirs {
+		templateFSs = append(templateFSs, os.DirFS(templateDir))
+	}
+
+	var dataFSs []fs.FS
+	for _, dataDir := range opts.dataDirs {
+		dataFSs = append(dataFSs, os.DirFS(dataDir))
+	}
+
+	generateOpts := labx.GenerateOpts{
+		Root:         root,
+		Output:       outputRoot,
+		Channel:      opts.channel,
+		TemplateDirs: templateFSs,
+		DataDirs:     dataFSs,
+	}
+
+	err = labx.Generate(generateOpts)
 	if err != nil {
 		return err
 	}

@@ -55,12 +55,12 @@ func main() {
 func loadConfig() (*config.Config, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return nil, fmt.Errorf("Unable to determine home directory: %w", err)
+		return nil, fmt.Errorf("unable to determine home directory: %w", err)
 	}
 
 	cfg, err := config.Load(homeDir)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to load config: %w", err)
+		return nil, fmt.Errorf("unable to load config: %w", err)
 	}
 
 	return cfg, nil

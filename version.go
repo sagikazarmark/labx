@@ -5,7 +5,7 @@ import "runtime/debug"
 // Provisioned by ldflags.
 var version string
 
-//nolint:gochecknoglobals
+//nolint:gochecknoglobals,unused
 var (
 	revision     string
 	revisionDate string

@@ -1,135 +1,17 @@
 package labx
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
-	"path/filepath"
-	"slices"
-	"strings"
 	"text/template"
 
-	"maps"
+	"github.com/go-sprout/sprout"
+	sproutstrings "github.com/go-sprout/sprout/registry/strings"
+	sprouttime "github.com/go-sprout/sprout/registry/time"
 
-	"github.com/goccy/go-yaml"
+	"github.com/sagikazarmark/labx/pkg/sproutx"
 )
-
-// loadExtraTemplateData loads additional template data from JSON, YAML, and Markdown files in the data/ directory
-func loadExtraTemplateData(fsys fs.FS) (map[string]any, error) {
-	return loadExtraTemplateDataFromDirs(fsys, []string{})
-}
-
-// loadExtraTemplateDataFromDirs loads additional template data from JSON, YAML, and Markdown files
-// from multiple data directories. The root fsys data/ directory has precedence over additional data directories.
-func loadExtraTemplateDataFromDirs(rootFS fs.FS, additionalDataDirs []string) (map[string]any, error) {
-	// Convert string paths to fs.FS interfaces
-	var externalFSs []fs.FS
-	for _, dataDir := range additionalDataDirs {
-		externalFSs = append(externalFSs, os.DirFS(dataDir))
-	}
-
-	return loadExtraTemplateDataFromFilesystems(rootFS, externalFSs)
-}
-
-// loadDataFromDir loads data files from a specific directory in a filesystem
-func loadDataFromDir(fsys fs.FS, dataDir string) (map[string]any, error) {
-	data := make(map[string]any)
-
-	// Check if data directory exists
-	_, err := fs.Stat(fsys, dataDir)
-	if errors.Is(err, fs.ErrNotExist) {
-		// No data directory, return empty map
-		return data, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("stat data directory: %w", err)
-	}
-
-	// Walk through the data directory
-	err = fs.WalkDir(fsys, dataDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip directories
-		// TODO: consider supporting nested data
-		if d.IsDir() {
-			return nil
-		}
-
-		// Only process JSON, YAML, and Markdown files
-		originalExt := filepath.Ext(d.Name())
-		ext := strings.ToLower(originalExt)
-		if !slices.Contains([]string{".json", ".yaml", ".yml", ".md", ".markdown"}, ext) {
-			return nil
-		}
-
-		// Read the file
-		fileData, err := fs.ReadFile(fsys, path)
-		if err != nil {
-			return fmt.Errorf("read file %s: %w", path, err)
-		}
-
-		// Parse based on extension
-		var fileDataParsed any
-		switch ext {
-		case ".json":
-			err = json.Unmarshal(fileData, &fileDataParsed)
-			if err != nil {
-				return fmt.Errorf("parse JSON file %s: %w", path, err)
-			}
-		case ".yaml", ".yml":
-			err = yaml.Unmarshal(fileData, &fileDataParsed)
-			if err != nil {
-				return fmt.Errorf("parse YAML file %s: %w", path, err)
-			}
-		case ".md", ".markdown":
-			// Store markdown files as strings
-			fileDataParsed = string(fileData)
-		}
-
-		// Use filename without extension as key
-		key := strings.TrimSuffix(d.Name(), originalExt)
-		data[key] = fileDataParsed
-
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("walk data directory: %w", err)
-	}
-
-	return data, nil
-}
-
-// loadExtraTemplateDataFromFilesystems loads data from multiple fs.FS instances for testing
-func loadExtraTemplateDataFromFilesystems(rootFS fs.FS, externalFSs []fs.FS) (map[string]any, error) {
-	extraData := make(map[string]any)
-
-	// Load from external filesystems first (lower precedence)
-	for _, externalFS := range externalFSs {
-		dirData, err := loadDataFromDir(externalFS, ".")
-		if err != nil {
-			// Skip filesystems that can't be read
-			continue
-		}
-
-		// Merge data (files loaded later will overwrite)
-		maps.Copy(extraData, dirData)
-	}
-
-	// Load from root filesystem data/ directory last (highest precedence)
-	rootData, err := loadDataFromDir(rootFS, "data")
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("load data from root data directory: %w", err)
-	}
-
-	// Merge root data (will overwrite any conflicting keys)
-	maps.Copy(extraData, rootData)
-
-	return extraData, nil
-}
 
 func renderRootTemplate(ctx renderContext, tpl *template.Template, name string) error {
 	data := templateData{
@@ -155,4 +37,60 @@ func renderTemplate(
 	defer outputFile.Close()
 
 	return tpl.ExecuteTemplate(outputFile, name, data)
+}
+
+func createBaseTemplate(rootFS fs.FS, templateFSs []fs.FS) (*template.Template, error) {
+	tplFuncs := createTemplateFuncs(rootFS)
+	tpl := template.New("").Funcs(tplFuncs)
+
+	for _, templateFS := range templateFSs {
+		patterns := []string{
+			"*.md",
+			"**/*.md",
+		}
+
+		var err error
+		tpl, err = parseTemplatePatterns(tpl, templateFS, patterns)
+		if err != nil {
+			return nil, fmt.Errorf("parse templates: %w", err)
+		}
+	}
+
+	return tpl, nil
+}
+
+// createTemplateFuncs creates template functions for the given filesystem
+func createTemplateFuncs(fsys fs.FS) template.FuncMap {
+	return sprout.New(
+		sprout.WithRegistries(
+			sproutstrings.NewRegistry(),
+			sproutx.NewFSRegistry(fsys),
+			sproutx.NewStringsRegistry(),
+			sprouttime.NewRegistry(),
+		),
+	).Build()
+}
+
+// parseTemplatePatterns parses template patterns from a filesystem into a template
+func parseTemplatePatterns(
+	tpl *template.Template,
+	fsys fs.FS,
+	patterns []string,
+) (*template.Template, error) {
+	var matchedPatterns []string
+
+	for _, pattern := range patterns {
+		matches, err := fs.Glob(fsys, pattern)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(matches) == 0 {
+			continue
+		}
+
+		matchedPatterns = append(matchedPatterns, pattern)
+	}
+
+	return tpl.ParseFS(fsys, matchedPatterns...)
 }
