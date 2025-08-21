@@ -245,6 +245,8 @@ func createLessonTemplate(
 		return nil, fmt.Errorf("clone global template: %w", err)
 	}
 
+	tpl = tpl.Funcs(createTemplateFuncs(lessonFS))
+
 	// Parse course-level templates on top (excluding *.md to avoid content files)
 	coursePatterns := []string{
 		"templates/*.md",
