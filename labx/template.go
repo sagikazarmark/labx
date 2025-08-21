@@ -92,5 +92,9 @@ func parseTemplatePatterns(
 		matchedPatterns = append(matchedPatterns, pattern)
 	}
 
+	if len(matchedPatterns) == 0 {
+		return tpl, nil
+	}
+
 	return tpl.ParseFS(fsys, matchedPatterns...)
 }
