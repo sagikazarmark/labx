@@ -3,7 +3,7 @@ module github.com/sagikazarmark/labx
 go 1.24.1
 
 require (
-	github.com/go-sprout/sprout v1.0.1
+	github.com/go-sprout/sprout v1.0.2
 	github.com/goccy/go-yaml v1.18.0
 	github.com/google/go-containerregistry v0.20.6
 	github.com/iximiuz/labctl v0.1.47
@@ -11,7 +11,7 @@ require (
 	github.com/samber/lo v1.51.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.7
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 )
 
 require (
