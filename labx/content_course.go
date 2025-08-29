@@ -7,7 +7,19 @@ import (
 	"os"
 	"strings"
 	"text/template"
+
+	"github.com/goccy/go-yaml"
+	"github.com/sagikazarmark/labx/core"
 )
+
+// lessonTemplateData holds the data passed to lesson template executions
+type lessonTemplateData struct {
+	Channel  string
+	Manifest core.ContentManifest
+	Course   core.ContentManifest
+	Module   *core.ContentManifest
+	Extra    map[string]any
+}
 
 // renderCourse handles rendering for both simple and modular courses
 func renderCourse(ctx renderContext) error {
@@ -56,7 +68,7 @@ func renderSimpleCourse(ctx renderContext) error {
 		lessonName := lesson.Name()
 		lessonPath := "lessons/" + lessonName
 
-		err = renderLesson(ctx, lessonPath, lessonName)
+		err = renderLesson(ctx, lessonPath, lessonName, nil)
 		if err != nil {
 			return fmt.Errorf("render lesson %s: %w", lessonName, err)
 		}
@@ -88,6 +100,21 @@ func renderModularCourse(ctx renderContext) error {
 			return fmt.Errorf("render module manifest %s: %w", moduleName, err)
 		}
 
+		manifestFile, err := fsys.Open(modulePath + "/manifest.yaml")
+		if err != nil {
+			return fmt.Errorf("read module manifest: %w", err)
+		}
+
+		decoder := yaml.NewDecoder(manifestFile)
+
+		var moduleManifest core.ContentManifest
+
+		err = decoder.Decode(&moduleManifest)
+		if err != nil {
+			return fmt.Errorf("decode module manifest: %w", err)
+		}
+		defer manifestFile.Close()
+
 		// Process lessons within the module
 		lessons, err := fs.ReadDir(fsys, modulePath)
 		if err != nil {
@@ -103,7 +130,7 @@ func renderModularCourse(ctx renderContext) error {
 			lessonPath := modulePath + "/" + lessonName
 			outputPath := moduleName + "/" + lessonName
 
-			err = renderLesson(ctx, lessonPath, outputPath)
+			err = renderLesson(ctx, lessonPath, outputPath, &moduleManifest)
 			if err != nil {
 				return fmt.Errorf(
 					"render lesson %s in module %s: %w",
@@ -158,7 +185,7 @@ func renderModuleManifest(root *os.Root, output *os.Root, modulePath, moduleName
 }
 
 // renderLesson processes a lesson directory and renders its content
-func renderLesson(ctx renderContext, lessonPath, outputPath string) error {
+func renderLesson(ctx renderContext, lessonPath, outputPath string, moduleManifest *core.ContentManifest) error {
 	fsys := ctx.Root.FS()
 
 	// Create lesson directory first
@@ -218,9 +245,11 @@ func renderLesson(ctx renderContext, lessonPath, outputPath string) error {
 		if strings.HasSuffix(fileName, ".md") && fileName != "index.md" {
 			outputFilePath := outputPath + "/" + fileName
 
-			data := templateData{
+			data := lessonTemplateData{
 				Channel:  ctx.Channel,
 				Manifest: lessonManifest,
+				Course:   ctx.Manifest,
+				Module:   moduleManifest,
 				Extra:    ctx.Extra,
 			}
 
