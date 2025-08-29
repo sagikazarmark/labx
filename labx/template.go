@@ -7,8 +7,7 @@ import (
 	"text/template"
 
 	"github.com/go-sprout/sprout"
-	sproutstrings "github.com/go-sprout/sprout/registry/strings"
-	sprouttime "github.com/go-sprout/sprout/registry/time"
+	"github.com/go-sprout/sprout/group/all"
 
 	"github.com/sagikazarmark/labx/pkg/sproutx"
 )
@@ -63,11 +62,10 @@ func createBaseTemplate(rootFS fs.FS, templateFSs []fs.FS) (*template.Template, 
 func createTemplateFuncs(fsys fs.FS) template.FuncMap {
 	return sprout.New(
 		sprout.WithRegistries(
-			sproutstrings.NewRegistry(),
 			sproutx.NewFSRegistry(fsys),
 			sproutx.NewStringsRegistry(),
-			sprouttime.NewRegistry(),
 		),
+		sprout.WithGroups(all.RegistryGroup()),
 	).Build()
 }
 
