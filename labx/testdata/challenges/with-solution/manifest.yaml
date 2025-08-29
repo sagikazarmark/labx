@@ -1,0 +1,90 @@
+kind: challenge
+
+title: "Dagger: Module Dependencies"
+
+description: |
+  Learn how to install, update and uninstall Dagger module dependencies.
+
+channels:
+  live:
+    name: dagger-module-dependencies-d59779c7
+  dev:
+    name: dagger-module-dependencies-d59779c7-d75088ef
+
+categories:
+  - ci-cd
+
+tagz:
+  - dagger
+
+difficulty: easy
+
+createdAt: 2025-04-20
+updatedAt: 2025-04-20
+
+cover: __static__/cover-v4.webp
+
+playground:
+  name: dagger-developer-47d32299
+
+  tabs:
+    - kind: ide
+      name: IDE
+    - kind: terminal
+      machine: dagger
+      name: dagger
+    - kind: web-page
+      name: Daggerverse
+      url: https://daggerverse.dev
+
+tasks:
+  init_install_tools:
+    init: true
+    machine: dagger
+    user: root
+    run: |
+      apt install -y moreutils
+  verify_module_initialized:
+    machine: dagger
+    user: laborant
+    run: dagger_module_exists ~/my-module
+  verify_go_module_installed:
+    machine: dagger
+    user: laborant
+    needs:
+      - verify_module_initialized
+    run: dagger_module_installed_from go "github.com/sagikazarmark/daggerverse/go" ~/my-module
+  verify_favorite_module_installed:
+    machine: dagger
+    user: laborant
+    needs:
+      - verify_module_initialized
+    run: dagger_module_installed my-favorite ~/my-module
+  verify_helm_module_installed:
+    machine: dagger
+    user: laborant
+    needs:
+      - verify_module_initialized
+    run: dagger_module_installed helm ~/my-module
+  verify_helm_module_updated:
+    machine: dagger
+    user: laborant
+    needs:
+      - verify_module_initialized
+      - verify_helm_module_installed
+    run: |
+      dagger_module_installed_latest helm ~/my-module
+      dagger_module_installed_pinned helm 126b5fbbdad70dbf2a8689600baec2eb78c05ef4 ~/my-module
+  verify_helm_docs_module_installed:
+    machine: dagger
+    user: laborant
+    needs:
+      - verify_module_initialized
+    run: dagger_module_installed helm-docs ~/my-module
+  verify_helm_docs_module_uninstalled:
+    machine: dagger
+    user: laborant
+    needs:
+      - verify_module_initialized
+      - verify_helm_docs_module_installed
+    run: dagger_module_not_installed helm-docs ~/my-module
