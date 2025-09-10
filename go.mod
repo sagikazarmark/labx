@@ -6,10 +6,10 @@ require (
 	github.com/go-sprout/sprout v1.0.2
 	github.com/goccy/go-yaml v1.18.0
 	github.com/google/go-containerregistry v0.20.6
-	github.com/iximiuz/labctl v0.1.47
+	github.com/iximiuz/labctl v0.1.48
 	github.com/sagikazarmark/go-finder v0.2.0
 	github.com/samber/lo v1.51.0
-	github.com/spf13/cobra v1.9.1
+	github.com/spf13/cobra v1.10.1
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 )
