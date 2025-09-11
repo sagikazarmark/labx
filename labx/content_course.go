@@ -16,6 +16,7 @@ import (
 type lessonTemplateData struct {
 	Channel  string
 	Manifest core.ContentManifest
+	Name     string
 	Course   core.ContentManifest
 	Module   *core.ContentManifest
 	Extra    map[string]any
@@ -248,6 +249,7 @@ func renderLesson(ctx renderContext, lessonPath, outputPath string, moduleManife
 			data := lessonTemplateData{
 				Channel:  ctx.Channel,
 				Manifest: lessonManifest,
+				Name:     ctx.Name,
 				Course:   ctx.Manifest,
 				Module:   moduleManifest,
 				Extra:    ctx.Extra,

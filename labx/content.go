@@ -18,10 +18,12 @@ import (
 )
 
 func Content(ctx GenerateContext) error {
-	manifest, err := convertContentManifest(ctx.Root.FS(), ctx.Channel)
+	extendedManifest, err := loadContentManifest(ctx.Root.FS(), ctx.Channel)
 	if err != nil {
 		return err
 	}
+
+	manifest := extendedManifest.Convert()
 
 	indexFile, err := ctx.Output.Create("index.md")
 	if err != nil {
@@ -51,6 +53,7 @@ func Content(ctx GenerateContext) error {
 		Root:         ctx.Root,
 		Output:       ctx.Output,
 		Channel:      ctx.Channel,
+		Name:         extendedManifest.Channels[ctx.Channel].Name,
 		Manifest:     manifest,
 		Extra:        ctx.ExtraData,
 		BaseTemplate: ctx.BaseTemplate,
@@ -58,6 +61,7 @@ func Content(ctx GenerateContext) error {
 
 	data := templateData{
 		Channel:  ctx.Channel,
+		Name:     renderCtx.Name,
 		Manifest: manifest,
 		Extra:    ctx.ExtraData,
 	}
@@ -102,10 +106,10 @@ func Content(ctx GenerateContext) error {
 	return nil
 }
 
-func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, error) {
+func loadContentManifest(fsys fs.FS, channel string) (extended.ContentManifest, error) {
 	manifestFile, err := fsys.Open("manifest.yaml")
 	if err != nil {
-		return core.ContentManifest{}, err
+		return extended.ContentManifest{}, err
 	}
 	defer manifestFile.Close()
 
@@ -115,18 +119,18 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 
 	err = decoder.Decode(&extendedManifest)
 	if err != nil {
-		return core.ContentManifest{}, err
+		return extended.ContentManifest{}, err
 	}
 
 	if extendedManifest.Playground.Name != "" {
 		hf, err := hasFiles(fsys, extendedManifest.Kind)
 		if err != nil {
-			return core.ContentManifest{}, err
+			return extended.ContentManifest{}, err
 		}
 
 		basePlayground, err := getPlaygroundManifest(extendedManifest.Playground.Name)
 		if err != nil {
-			return core.ContentManifest{}, err
+			return extended.ContentManifest{}, err
 		}
 
 		if hf {
@@ -178,7 +182,7 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 
 		machines, err := machinesProcessor.Process(extendedManifest.Playground.Machines)
 		if err != nil {
-			return core.ContentManifest{}, err
+			return extended.ContentManifest{}, err
 		}
 
 		extendedManifest.Playground.Machines = machines
@@ -193,6 +197,12 @@ func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, e
 		)
 	}
 
+	return extendedManifest, err
+}
+
+func convertContentManifest(fsys fs.FS, channel string) (core.ContentManifest, error) {
+	extendedManifest, err := loadContentManifest(fsys, channel)
+
 	manifest := extendedManifest.Convert()
 
 	return manifest, err
@@ -203,6 +213,7 @@ type renderContext struct {
 	Root         *os.Root
 	Output       *os.Root
 	Channel      string
+	Name         string
 	Manifest     core.ContentManifest
 	Extra        map[string]any
 	BaseTemplate *template.Template
@@ -211,6 +222,7 @@ type renderContext struct {
 // templateData holds the data passed to template executions
 type templateData struct {
 	Channel  string
+	Name     string
 	Manifest core.ContentManifest
 	Extra    map[string]any
 }
