@@ -142,6 +142,7 @@ func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
 		Network:      m.Network,
 		Resources:    m.Resources,
 		StartupFiles: append(playgroundStartupFiles, m.StartupFiles.Convert()...),
+		NoSSH:        m.NoSSH,
 	}
 }
 
