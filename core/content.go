@@ -47,6 +47,7 @@ type ContentPlaygroundMachine struct {
 	Network      *api.MachineNetwork      `yaml:"network,omitzero"       json:"network,omitzero"`
 	Resources    *api.MachineResources    `yaml:"resources,omitzero"     json:"resources,omitzero"`
 	StartupFiles []api.MachineStartupFile `yaml:"startupFiles,omitempty" json:"startupFiles,omitempty"`
+	NoSSH        bool                     `yaml:"noSSH,omitzero"         json:"noSSH,omitzero"`
 }
 
 type Task struct {

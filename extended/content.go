@@ -180,6 +180,7 @@ func (s ContentPlaygroundSpec) convertMachines() []core.ContentPlaygroundMachine
 					Network:      machine.Network,
 					Resources:    machine.Resources,
 					StartupFiles: machine.StartupFiles,
+					NoSSH:        machine.NoSSH,
 				}
 			},
 		)

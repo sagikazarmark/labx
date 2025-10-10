@@ -100,6 +100,7 @@ type PlaygroundMachine struct {
 	Network      *api.MachineNetwork   `yaml:"network,omitzero"   json:"network,omitzero"`
 	Resources    *api.MachineResources `yaml:"resources,omitzero" json:"resources,omitzero"`
 	StartupFiles MachineStartupFiles   `yaml:"startupFiles"       json:"startupFiles"`
+	NoSSH        bool                  `yaml:"noSSH,omitzero"     json:"noSSH,omitzero"`
 }
 
 func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
