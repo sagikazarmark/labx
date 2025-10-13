@@ -237,6 +237,8 @@ type Task struct {
 	Needs          []string   `yaml:"needs,omitempty"   json:"needs,omitempty"`
 	Env            []string   `yaml:"env,omitempty"     json:"env,omitempty"`
 	Run            string     `yaml:"run"               json:"run"`
+	HintCheck      string     `yaml:"hintcheck"         json:"hintcheck"`
+	FailCheck      string     `yaml:"failcheck"         json:"failcheck"`
 }
 
 func (t Task) Convert() core.Task {
@@ -246,6 +248,8 @@ func (t Task) Convert() core.Task {
 		Needs:          slices.Clone(t.Needs),
 		Env:            slices.Clone(t.Env),
 		Run:            t.Run,
+		HintCheck:      t.HintCheck,
+		FailCheck:      t.FailCheck,
 	}
 }
 

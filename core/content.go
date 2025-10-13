@@ -58,4 +58,6 @@ type Task struct {
 	Needs          []string `yaml:"needs,omitempty"   json:"needs,omitempty"`
 	Env            []string `yaml:"env,omitempty"     json:"env,omitempty"`
 	Run            string   `yaml:"run"               json:"run"`
+	HintCheck      string   `yaml:"hintcheck"         json:"hintcheck"`
+	FailCheck      string   `yaml:"failcheck"         json:"failcheck"`
 }
