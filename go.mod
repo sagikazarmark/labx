@@ -9,7 +9,7 @@ require (
 	github.com/iximiuz/labctl v0.1.48
 	github.com/sagikazarmark/go-finder v0.2.0
 	github.com/samber/lo v1.52.0
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 )
