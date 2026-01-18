@@ -1,8 +1,16 @@
-/.devenv/
-/.direnv/
-
 /test/
 # Added by goreleaser init:
 dist/
 
 /lx
+
+# Devenv
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml
