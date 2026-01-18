@@ -5,8 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/sagikazarmark/labx/labx"
 	"github.com/stretchr/testify/require"
+
+	"github.com/sagikazarmark/labx/labx"
 )
 
 func TestTutorials(t *testing.T) {

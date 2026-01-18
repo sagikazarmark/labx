@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"github.com/goccy/go-yaml"
+
 	"github.com/sagikazarmark/labx/core"
 )
 
@@ -186,7 +187,11 @@ func renderModuleManifest(root *os.Root, output *os.Root, modulePath, moduleName
 }
 
 // renderLesson processes a lesson directory and renders its content
-func renderLesson(ctx renderContext, lessonPath, outputPath string, moduleManifest *core.ContentManifest) error {
+func renderLesson(
+	ctx renderContext,
+	lessonPath, outputPath string,
+	moduleManifest *core.ContentManifest,
+) error {
 	fsys := ctx.Root.FS()
 
 	// Create lesson directory first
