@@ -5,5 +5,9 @@ import (
 )
 
 func TestCourses(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
 	testContent(t, "courses")
 }

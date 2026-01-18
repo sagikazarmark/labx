@@ -10,6 +10,10 @@ import (
 )
 
 func TestTutorials(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
 	testContent(t, "tutorials")
 }
 

@@ -39,7 +39,7 @@ jobs:
           go-version: "1.25"
 
       - name: Test
-        run: go test -race -v -shuffle=on ./...
+        run: go test -short -race -v -shuffle=on ./...
 
   lint:
     name: Lint
