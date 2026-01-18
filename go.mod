@@ -4,7 +4,7 @@ go 1.24.1
 
 require (
 	github.com/go-sprout/sprout v1.0.3
-	github.com/goccy/go-yaml v1.18.0
+	github.com/goccy/go-yaml v1.19.2
 	github.com/google/go-containerregistry v0.20.7
 	github.com/iximiuz/labctl v0.1.48
 	github.com/sagikazarmark/go-finder v0.2.0
