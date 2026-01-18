@@ -42,7 +42,7 @@ type ContentPlaygroundSpec struct {
 type ContentPlaygroundMachine struct {
 	Name         string                   `yaml:"name"                   json:"name"`
 	Users        []api.MachineUser        `yaml:"users,omitempty"        json:"users,omitempty"`
-	Kernel       string                   `yaml:"kernel,omitempty"       json:"kernel,omitempty"`
+	Kernel       *api.MachineKernel       `yaml:"kernel,omitempty"       json:"kernel,omitempty"`
 	Drives       []api.MachineDrive       `yaml:"drives,omitempty"       json:"drives,omitempty"`
 	Network      *api.MachineNetwork      `yaml:"network,omitzero"       json:"network,omitzero"`
 	Resources    *api.MachineResources    `yaml:"resources,omitzero"     json:"resources,omitzero"`
