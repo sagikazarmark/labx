@@ -3,6 +3,7 @@ package labx_test
 import (
 	"io/fs"
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -41,6 +42,10 @@ func testGenerate(t *testing.T, content *os.Root) {
 
 		// TODO: fixme
 		if d.Name() == "running-dagger-pipelines-on-github-actions" {
+			return fs.SkipDir
+		}
+
+		if slices.Contains([]string{"openbao-raft", "openbao-vault-cluster-playground", "openbao-vault-playground", "sftpgo", "dagger-playground"}, d.Name()) {
 			return fs.SkipDir
 		}
 

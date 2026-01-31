@@ -46,8 +46,7 @@ type PlaygroundSpec struct {
 
 	AccessControl api.PlaygroundAccessControl `yaml:"accessControl" json:"accessControl"`
 
-	BaseName string             `yaml:"-" json:"-"`
-	Base     api.PlaygroundSpec `yaml:"-" json:"-"`
+	BaseName string `yaml:"-" json:"-"`
 }
 
 func (s PlaygroundSpec) Convert() api.PlaygroundSpec {

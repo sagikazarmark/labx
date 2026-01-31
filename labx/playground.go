@@ -80,7 +80,6 @@ func convertPlaygroundManifest(
 	}
 
 	extendedManifest.Playground.BaseName = basePlayground.Name
-	extendedManifest.Playground.Base = basePlayground.Playground
 
 	playgroundProcessor := PlaygroundProcessor{
 		Channel: channel,

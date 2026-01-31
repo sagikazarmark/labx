@@ -9,9 +9,7 @@ import (
 	"text/template"
 
 	"github.com/goccy/go-yaml"
-	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
-	"github.com/samber/lo"
 
 	"github.com/sagikazarmark/labx/core"
 	"github.com/sagikazarmark/labx/extended"
@@ -123,41 +121,9 @@ func loadContentManifest(fsys fs.FS, channel string) (extended.ContentManifest, 
 	}
 
 	if extendedManifest.Playground.Name != "" {
-		hf, err := hasFiles(fsys, extendedManifest.Kind)
-		if err != nil {
-			return extended.ContentManifest{}, err
-		}
-
 		basePlayground, err := getPlaygroundManifest(extendedManifest.Playground.Name)
 		if err != nil {
 			return extended.ContentManifest{}, err
-		}
-
-		if hf {
-			machines := lo.Map(
-				extendedManifest.Playground.Machines,
-				func(machine extended.PlaygroundMachine, _ int) string {
-					return machine.Name
-				},
-			)
-
-			if len(machines) == 0 {
-				machines = lo.Map(
-					basePlayground.Playground.Machines,
-					func(machine api.PlaygroundMachine, _ int) string {
-						return machine.Name
-					},
-				)
-			}
-
-			const name = "init_content_files"
-
-			extendedManifest.Tasks[name] = extended.Task{
-				Machine: machines,
-				Init:    true,
-				User:    extended.StringList{"root"},
-				Run:     createDownloadScript(extendedManifest.Kind),
-			}
 		}
 
 		extendedManifest.Playground.BaseName = basePlayground.Name

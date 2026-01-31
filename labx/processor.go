@@ -11,7 +11,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
-	"github.com/samber/lo"
 
 	"github.com/sagikazarmark/labx/extended"
 )
@@ -52,39 +51,6 @@ func (p PlaygroundProcessor) Process(
 	}
 
 	playground.Playground.Machines = machines
-
-	hf, err := hasFiles(p.Fsys, content.KindPlayground)
-	if err != nil {
-		return extended.PlaygroundManifest{}, err
-	}
-
-	if hf {
-		machines := lo.Map(
-			playground.Playground.Machines,
-			func(machine extended.PlaygroundMachine, _ int) string {
-				return machine.Name
-			},
-		)
-
-		if len(machines) == 0 {
-			machines = lo.Map(
-				playground.Playground.Base.Machines,
-				func(machine api.PlaygroundMachine, _ int) string {
-					return machine.Name
-				},
-			)
-		}
-
-		const name = "init_files"
-
-		playground.Playground.InitTasks[name] = extended.InitTask{
-			Name:    name,
-			Machine: machines,
-			Init:    true,
-			User:    extended.StringList{"root"},
-			Run:     createDownloadScript(content.KindPlayground),
-		}
-	}
 
 	return playground, nil
 }
