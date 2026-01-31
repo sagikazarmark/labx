@@ -74,12 +74,12 @@ func convertPlaygroundManifest(
 		return api.PlaygroundManifest{}, err
 	}
 
-	basePlayground, err := getPlaygroundManifest(extendedManifest.Base)
-	if err != nil {
-		return api.PlaygroundManifest{}, err
-	}
+	// basePlayground, err := getPlaygroundManifest(extendedManifest.Base)
+	// if err != nil {
+	// 	return api.PlaygroundManifest{}, err
+	// }
 
-	extendedManifest.Playground.BaseName = basePlayground.Name
+	extendedManifest.Playground.BaseName = extendedManifest.Base
 
 	playgroundProcessor := PlaygroundProcessor{
 		Channel: channel,
