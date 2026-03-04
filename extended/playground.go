@@ -209,10 +209,12 @@ func (t InitTasks) Convert() map[string]api.InitTask {
 				for i, need := range newInitTask.Needs {
 					// Dependency found with this name; need to check dependency resolution rules
 					if dep, ok := t[need]; ok {
-						// Dependency must always run on the same machine
-						if !slices.Contains(dep.Machine, machine) {
-							panic("invalid dependency: machine")
-						}
+						// Theoretically, this is now supported
+						// TODO: remove once confirmed
+						// ~~Dependency must always run on the same machine~~
+						// if !slices.Contains(dep.Machine, machine) {
+						// 	panic("invalid dependency: machine")
+						// }
 
 						// Dependency must have the same user in the list when running as multiple users
 						if len(dep.User) > 1 && !slices.Contains(dep.User, user) {
