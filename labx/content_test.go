@@ -45,7 +45,16 @@ func testGenerate(t *testing.T, content *os.Root) {
 			return fs.SkipDir
 		}
 
-		if slices.Contains([]string{"openbao-raft", "openbao-vault-cluster-playground", "openbao-vault-playground", "sftpgo", "dagger-playground"}, d.Name()) {
+		if slices.Contains(
+			[]string{
+				"openbao-raft",
+				"openbao-vault-cluster-playground",
+				"openbao-vault-playground",
+				"sftpgo",
+				"dagger-playground",
+			},
+			d.Name(),
+		) {
 			return fs.SkipDir
 		}
 
