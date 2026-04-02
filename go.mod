@@ -6,7 +6,7 @@ require (
 	github.com/go-sprout/sprout v1.0.3
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/go-containerregistry v0.21.2
-	github.com/iximiuz/labctl v0.1.61
+	github.com/iximiuz/labctl v0.1.66
 	github.com/sagikazarmark/go-finder v0.2.0
 	github.com/samber/lo v1.53.0
 	github.com/spf13/cobra v1.10.2
