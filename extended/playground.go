@@ -94,6 +94,7 @@ type PlaygroundMachine struct {
 	Hostname     string                `yaml:"hostname,omitempty" json:"hostname,omitempty"`
 	IDEPath      string                `yaml:"idePath,omitempty"  json:"idePath,omitempty"`
 	Users        MachineUsers          `yaml:"users"              json:"users"`
+	Backend      string                `yaml:"backend,omitempty"  json:"backend,omitempty"`
 	Kernel       *api.MachineKernel    `yaml:"kernel,omitempty"   json:"kernel,omitempty"`
 	Drives       []api.MachineDrive    `yaml:"drives"             json:"drives"`
 	Network      *api.MachineNetwork   `yaml:"network,omitzero"   json:"network,omitzero"`
