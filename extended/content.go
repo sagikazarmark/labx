@@ -177,6 +177,7 @@ func (s ContentPlaygroundSpec) convertMachines() []core.ContentPlaygroundMachine
 				return core.ContentPlaygroundMachine{
 					Name:         machine.Name,
 					Users:        machine.Users,
+					Backend:      machine.Backend,
 					Kernel:       machine.Kernel,
 					Drives:       machine.Drives,
 					Network:      machine.Network,
@@ -220,6 +221,7 @@ func (s ContentPlaygroundSpec) convertMachines() []core.ContentPlaygroundMachine
 			return core.ContentPlaygroundMachine{
 				Name:         machine.Name,
 				Users:        machine.Users,
+				Backend:      machine.Backend,
 				Kernel:       machine.Kernel,
 				Drives:       machine.Drives,
 				Network:      machine.Network,

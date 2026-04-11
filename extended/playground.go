@@ -137,6 +137,7 @@ func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
 	return api.PlaygroundMachine{
 		Name:         m.Name,
 		Users:        m.Users.Convert(),
+		Backend:      m.Backend,
 		Kernel:       m.Kernel,
 		Drives:       m.Drives,
 		Network:      m.Network,
