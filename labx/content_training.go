@@ -9,30 +9,39 @@ import (
 
 // renderTraining handles training-specific rendering
 func renderTraining(ctx renderContext, tpl *template.Template) error {
-	fsys := ctx.Root.FS()
-
-	// Process program.md if it exists
-	hasProgramFile, err := fileExists(fsys, "program.md")
+	hasProgramFile, err := renderProgram(ctx, tpl)
 	if err != nil {
 		return err
 	}
 
 	if hasProgramFile {
-		return renderRootTemplate(ctx, tpl, "program.md")
+		return nil
 	}
 
 	// Copy static files if they exist at the training level
-	hasStatic, err := dirExists(ctx.Root.FS(), "static")
+	err = copyStaticFilesIfExists(ctx.Root, ctx.Output, "static", "__static__")
 	if err != nil {
-		return err
+		return fmt.Errorf("copy static files: %w", err)
 	}
 
-	if hasStatic {
-		err = copyStaticFiles(ctx.Root, ctx.Output, "static", "__static__")
-		if err != nil {
-			return fmt.Errorf("copy static files: %w", err)
-		}
+	return renderUnits(ctx)
+}
+
+func renderProgram(ctx renderContext, tpl *template.Template) (bool, error) {
+	hasProgramFile, err := fileExists(ctx.Root.FS(), "program.md")
+	if err != nil {
+		return false, err
 	}
+
+	if !hasProgramFile {
+		return false, nil
+	}
+
+	return true, renderRootTemplate(ctx, tpl, "program.md")
+}
+
+func renderUnits(ctx renderContext) error {
+	fsys := ctx.Root.FS()
 
 	// Process units directory if it exists
 	hasUnits, err := dirExists(fsys, "units")
@@ -91,6 +100,7 @@ func renderTrainingUnit(ctx renderContext, unitPath, unitName string) error {
 
 	data := templateData{
 		Channel:  ctx.Channel,
+		Name:     ctx.Name,
 		Manifest: ctx.Manifest,
 		Extra:    ctx.Extra,
 	}

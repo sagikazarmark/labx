@@ -37,17 +37,9 @@ func Playground(ctx GenerateContext) error {
 		return err
 	}
 
-	// Copy static files if they exist
-	hasStatic, err := dirExists(ctx.Root.FS(), "static")
+	err = copyStaticFilesIfExists(ctx.Root, ctx.Output, "static", "__static__")
 	if err != nil {
 		return err
-	}
-
-	if hasStatic {
-		err = copyStaticFiles(ctx.Root, ctx.Output, "static", "__static__")
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -59,17 +51,7 @@ func convertPlaygroundManifest(
 	baseTemplate *template.Template,
 	extraData map[string]any,
 ) (api.PlaygroundManifest, error) {
-	manifestFile, err := fsys.Open("manifest.yaml")
-	if err != nil {
-		return api.PlaygroundManifest{}, err
-	}
-	defer manifestFile.Close()
-
-	decoder := yaml.NewDecoder(manifestFile)
-
-	var extendedManifest extended.PlaygroundManifest
-
-	err = decoder.Decode(&extendedManifest)
+	extendedManifest, err := loadYAMLFile[extended.PlaygroundManifest](fsys, "manifest.yaml")
 	if err != nil {
 		return api.PlaygroundManifest{}, err
 	}
@@ -110,24 +92,32 @@ func convertPlaygroundManifest(
 	manifest := extendedManifest.Convert()
 
 	if manifest.Markdown == "" {
-		markdown, err := readAndRenderMarkdown(fsys, channel, manifest, baseTemplate, extraData)
+		markdown, found, err := renderPlaygroundMarkdown(
+			fsys,
+			channel,
+			manifest,
+			baseTemplate,
+			extraData,
+		)
 		if err != nil {
 			return manifest, err
 		}
 
-		manifest.Markdown = markdown
+		if found {
+			manifest.Markdown = markdown
+		}
 	}
 
 	return manifest, err
 }
 
-func readAndRenderMarkdown(
+func renderPlaygroundMarkdown(
 	fsys fs.FS,
 	channel string,
 	manifest api.PlaygroundManifest,
 	baseTemplate *template.Template,
 	extraData map[string]any,
-) (string, error) {
+) (string, bool, error) {
 	finder := finder.Finder{
 		Paths: []string{""},
 		Names: []string{"README.md", "manifest.md"},
@@ -136,11 +126,11 @@ func readAndRenderMarkdown(
 
 	markdownFile, err := finder.Find(fsys)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
 	if len(markdownFile) == 0 {
-		return "", nil
+		return "", false, nil
 	}
 
 	templateName := markdownFile[0]
@@ -148,7 +138,7 @@ func readAndRenderMarkdown(
 	// Create template by copying global template and adding playground-specific ones
 	tpl, err := createPlaygroundTemplate(fsys, baseTemplate)
 	if err != nil {
-		return "", fmt.Errorf("create playground template: %w", err)
+		return "", false, fmt.Errorf("create playground template: %w", err)
 	}
 
 	// Create template data for playground
@@ -162,10 +152,10 @@ func readAndRenderMarkdown(
 	var buf bytes.Buffer
 	err = tpl.ExecuteTemplate(&buf, templateName, data)
 	if err != nil {
-		return "", fmt.Errorf("execute markdown template %s: %w", templateName, err)
+		return "", false, fmt.Errorf("execute markdown template %s: %w", templateName, err)
 	}
 
-	return buf.String(), nil
+	return buf.String(), true, nil
 }
 
 // playgroundTemplateData holds the data passed to playground template executions
