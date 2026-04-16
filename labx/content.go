@@ -8,7 +8,6 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/goccy/go-yaml"
 	"github.com/iximiuz/labctl/content"
 
 	"github.com/sagikazarmark/labx/core"
@@ -23,99 +22,29 @@ func Content(ctx GenerateContext) error {
 
 	manifest := extendedManifest.Convert()
 
-	indexFile, err := ctx.Output.Create("index.md")
-	if err != nil {
-		return err
-	}
-	defer indexFile.Close()
-
-	err = writeManifest(indexFile, manifest)
-	if err != nil {
-		return err
-	}
-
-	if strings.ToLower(ctx.Channel) == "beta" {
-		_, err = io.WriteString(indexFile, betaNotice)
-		if err != nil {
-			return err
-		}
-	}
-
 	// Copy global templates and add local content templates
 	tpl, err := createContentTemplateFromGlobal(ctx.BaseTemplate, ctx.Root.FS())
 	if err != nil {
 		return err
 	}
 
-	renderCtx := renderContext{
-		Root:         ctx.Root,
-		Output:       ctx.Output,
-		Channel:      ctx.Channel,
-		Name:         extendedManifest.Channels[ctx.Channel].Name,
-		Manifest:     manifest,
-		Extra:        ctx.ExtraData,
-		BaseTemplate: ctx.BaseTemplate,
-	}
+	renderCtx := newRenderContext(ctx, manifest, extendedManifest.Channels[ctx.Channel].Name)
 
-	data := templateData{
-		Channel:  ctx.Channel,
-		Name:     renderCtx.Name,
-		Manifest: manifest,
-		Extra:    ctx.ExtraData,
-	}
-
-	err = tpl.ExecuteTemplate(indexFile, "index.md", data)
+	err = renderContentIndex(renderCtx, tpl, strings.ToLower(ctx.Channel) == "beta")
 	if err != nil {
 		return err
 	}
 
-	// Copy static files if they exist at the root level
-	hasStatic, err := dirExists(ctx.Root.FS(), "static")
+	err = copyStaticFilesIfExists(ctx.Root, ctx.Output, "static", "__static__")
 	if err != nil {
-		return err
+		return fmt.Errorf("copy static files: %w", err)
 	}
 
-	if hasStatic {
-		err = copyStaticFiles(ctx.Root, ctx.Output, "static", "__static__")
-		if err != nil {
-			return fmt.Errorf("copy static files: %w", err)
-		}
-	}
-
-	// Handle content-specific rendering
-	switch manifest.Kind {
-	case content.KindChallenge:
-		err := renderChallenge(renderCtx, tpl)
-		if err != nil {
-			return err
-		}
-	case content.KindCourse:
-		err := renderCourse(renderCtx)
-		if err != nil {
-			return err
-		}
-	case content.KindTraining:
-		err := renderTraining(renderCtx, tpl)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return renderContentTemplates(renderCtx, tpl)
 }
 
 func loadContentManifest(fsys fs.FS, channel string) (extended.ContentManifest, error) {
-	manifestFile, err := fsys.Open("manifest.yaml")
-	if err != nil {
-		return extended.ContentManifest{}, err
-	}
-	defer manifestFile.Close()
-
-	decoder := yaml.NewDecoder(manifestFile)
-
-	var extendedManifest extended.ContentManifest
-
-	err = decoder.Decode(&extendedManifest)
+	extendedManifest, err := loadYAMLFile[extended.ContentManifest](fsys, "manifest.yaml")
 	if err != nil {
 		return extended.ContentManifest{}, err
 	}
@@ -193,6 +122,31 @@ type templateData struct {
 	Extra    map[string]any
 }
 
+func newRenderContext(
+	ctx GenerateContext,
+	manifest core.ContentManifest,
+	name string,
+) renderContext {
+	return renderContext{
+		Root:         ctx.Root,
+		Output:       ctx.Output,
+		Channel:      ctx.Channel,
+		Name:         name,
+		Manifest:     manifest,
+		Extra:        ctx.ExtraData,
+		BaseTemplate: ctx.BaseTemplate,
+	}
+}
+
+func newTemplateData(ctx renderContext) templateData {
+	return templateData{
+		Channel:  ctx.Channel,
+		Name:     ctx.Name,
+		Manifest: ctx.Manifest,
+		Extra:    ctx.Extra,
+	}
+}
+
 // frontMatterWriter automatically adds front matter delimiters on first write
 type frontMatterWriter struct {
 	writer     io.Writer
@@ -231,6 +185,45 @@ func (w *frontMatterWriter) Write(p []byte) (n int, err error) {
 
 	// Subsequent writes go directly to the underlying writer
 	return w.writer.Write(p)
+}
+
+func renderContentIndex(
+	ctx renderContext,
+	tpl *template.Template,
+	includeBetaNotice bool,
+) error {
+	indexFile, err := createOutputFile(ctx.Output, "index.md")
+	if err != nil {
+		return err
+	}
+	defer indexFile.Close()
+
+	err = writeManifest(indexFile, ctx.Manifest)
+	if err != nil {
+		return err
+	}
+
+	if includeBetaNotice {
+		_, err = io.WriteString(indexFile, betaNotice)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tpl.ExecuteTemplate(indexFile, "index.md", newTemplateData(ctx))
+}
+
+func renderContentTemplates(ctx renderContext, tpl *template.Template) error {
+	switch ctx.Manifest.Kind {
+	case content.KindChallenge:
+		return renderChallenge(ctx, tpl)
+	case content.KindCourse:
+		return renderCourse(ctx)
+	case content.KindTraining:
+		return renderTraining(ctx, tpl)
+	}
+
+	return nil
 }
 
 // createContentTemplateFromGlobal creates a content template by copying global templates and adding local ones
