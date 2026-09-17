@@ -15,7 +15,7 @@ func main() {
 	var client *api.Client
 
 	cmd := &cobra.Command{
-		Use:     "labx <generate>",
+		Use:     "labx <generate|render>",
 		Short:   "labx - opinionated tools for iximiuz Labs content",
 		Version: version,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -43,6 +43,7 @@ func main() {
 
 	cmd.AddCommand(
 		xcmd.NewGenerateCommand(),
+		xcmd.NewRenderCommand(),
 	)
 
 	err := cmd.Execute()

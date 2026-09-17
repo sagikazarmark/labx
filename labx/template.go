@@ -13,17 +13,11 @@ import (
 )
 
 func renderRootTemplate(ctx renderContext, tpl *template.Template, name string) error {
-	data := templateData{
-		Channel:  ctx.Channel,
-		Manifest: ctx.Manifest,
-		Extra:    ctx.Extra,
-	}
-
-	return renderTemplate(ctx.Output, name, tpl, name, data)
+	return renderTemplate(ctx.Output, name, tpl, name, newTemplateData(ctx))
 }
 
 func renderTemplate(
-	output *os.Root,
+	output outputFS,
 	outputPath string,
 	tpl *template.Template,
 	name string,
@@ -36,6 +30,18 @@ func renderTemplate(
 	defer outputFile.Close()
 
 	return tpl.ExecuteTemplate(outputFile, name, data)
+}
+
+type outputFS interface {
+	Create(string) (*os.File, error)
+}
+
+type rootedOutput struct {
+	root *os.Root
+}
+
+func (o rootedOutput) Create(path string) (*os.File, error) {
+	return createOutputFile(o.root, path)
 }
 
 func createBaseTemplate(rootFS fs.FS, templateFSs []fs.FS) (*template.Template, error) {

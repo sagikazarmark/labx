@@ -5,8 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"text/template"
-
-	"github.com/goccy/go-yaml"
 )
 
 // manifestKind represents a minimal manifest structure to determine routing
@@ -34,40 +32,9 @@ type GenerateContext struct {
 
 // Generate processes content based on the manifest kind, routing to appropriate handlers
 func Generate(opts GenerateOpts) error {
-	// Read and parse just the kind field from manifest.yaml
-	manifestFile, err := opts.Root.FS().Open("manifest.yaml")
+	kind, ctx, err := prepareGenerateContext(opts)
 	if err != nil {
 		return err
-	}
-	defer manifestFile.Close()
-
-	decoder := yaml.NewDecoder(manifestFile)
-
-	var kind manifestKind
-	err = decoder.Decode(&kind)
-	if err != nil {
-		return err
-	}
-
-	// Parse global templates
-	baseTemplate, err := createBaseTemplate(opts.Root.FS(), opts.TemplateDirs)
-	if err != nil {
-		return fmt.Errorf("create global templates: %w", err)
-	}
-
-	// Load extra template data once
-	extraData, err := loadAllExtraData(opts.Root.FS(), opts.DataDirs)
-	if err != nil {
-		return fmt.Errorf("load extra template data: %w", err)
-	}
-
-	// Create the context with shared state
-	ctx := GenerateContext{
-		Root:         opts.Root,
-		Output:       opts.Output,
-		Channel:      opts.Channel,
-		BaseTemplate: baseTemplate,
-		ExtraData:    extraData,
 	}
 
 	// Route based on kind
@@ -77,4 +44,31 @@ func Generate(opts GenerateOpts) error {
 
 	// Everything else goes through content processing
 	return Content(ctx)
+}
+
+func prepareGenerateContext(opts GenerateOpts) (manifestKind, GenerateContext, error) {
+	kind, err := loadYAMLFile[manifestKind](opts.Root.FS(), "manifest.yaml")
+	if err != nil {
+		return manifestKind{}, GenerateContext{}, err
+	}
+
+	baseTemplate, err := createBaseTemplate(opts.Root.FS(), opts.TemplateDirs)
+	if err != nil {
+		return manifestKind{}, GenerateContext{}, fmt.Errorf("create global templates: %w", err)
+	}
+
+	extraData, err := loadAllExtraData(opts.Root.FS(), opts.DataDirs)
+	if err != nil {
+		return manifestKind{}, GenerateContext{}, fmt.Errorf("load extra template data: %w", err)
+	}
+
+	ctx := GenerateContext{
+		Root:         opts.Root,
+		Output:       opts.Output,
+		Channel:      opts.Channel,
+		BaseTemplate: baseTemplate,
+		ExtraData:    extraData,
+	}
+
+	return kind, ctx, nil
 }

@@ -155,7 +155,10 @@ func setupFsys(opts *generateOptions) (*os.Root, *os.Root, error) {
 		if dirExists, err := isDirEmptyPath(outputPath); err != nil {
 			return nil, nil, err
 		} else if !dirExists {
-			return nil, nil, fmt.Errorf("output directory '%s' is not empty. Use --clear to remove it first", outputPath)
+			return nil, nil, fmt.Errorf(
+				"output directory '%s' is not empty. Use --clear to remove it first",
+				outputPath,
+			)
 		}
 	}
 
