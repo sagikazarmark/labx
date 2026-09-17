@@ -6,9 +6,12 @@ import (
 
 	"github.com/iximiuz/labctl/api"
 	"github.com/samber/lo"
+
+	"github.com/sagikazarmark/labx/core"
 )
 
 type PlaygroundManifest struct {
+	Metadata    map[string]any     `yaml:",inline"     json:"-"`
 	Kind        string             `yaml:"kind"        json:"kind"`
 	Name        string             `yaml:"name"        json:"name"`
 	Base        string             `yaml:"base"        json:"base"`
@@ -21,8 +24,9 @@ type PlaygroundManifest struct {
 	Playground  PlaygroundSpec     `yaml:"playground"  json:"playground"`
 }
 
-func (m PlaygroundManifest) Convert() api.PlaygroundManifest {
-	return api.PlaygroundManifest{
+func (m PlaygroundManifest) Convert() core.PlaygroundManifest {
+	return core.PlaygroundManifest{
+		Metadata:    m.Metadata,
 		Kind:        m.Kind,
 		Name:        m.Name,
 		Base:        m.Base,
@@ -36,6 +40,9 @@ func (m PlaygroundManifest) Convert() api.PlaygroundManifest {
 }
 
 type PlaygroundSpec struct {
+	Metadata       map[string]any          `yaml:",inline"                json:"-"`
+	StartupFiles   MachineStartupFiles     `yaml:"startupFiles,omitempty" json:"startupFiles,omitempty"`
+	PortForwards   []api.PortForward       `yaml:"portForwards,omitempty" json:"portForwards,omitempty"`
 	Welcome        string                  `yaml:"welcome"                json:"welcome"`
 	Networks       []api.PlaygroundNetwork `yaml:"networks"               json:"networks"`
 	Machines       PlaygroundMachines      `yaml:"machines"               json:"machines"`
@@ -49,8 +56,11 @@ type PlaygroundSpec struct {
 	BaseName string `yaml:"-" json:"-"`
 }
 
-func (s PlaygroundSpec) Convert() api.PlaygroundSpec {
-	return api.PlaygroundSpec{
+func (s PlaygroundSpec) Convert() core.PlaygroundSpec {
+	return core.PlaygroundSpec{
+		Metadata:       s.Metadata,
+		StartupFiles:   s.StartupFiles.Convert(),
+		PortForwards:   s.PortForwards,
 		Networks:       s.Networks,
 		Machines:       s.convertMachines(),
 		Tabs:           s.Tabs,
@@ -61,7 +71,7 @@ func (s PlaygroundSpec) Convert() api.PlaygroundSpec {
 	}
 }
 
-func (s PlaygroundSpec) convertMachines() []api.PlaygroundMachine {
+func (s PlaygroundSpec) convertMachines() []core.ContentPlaygroundMachine {
 	if s.BaseName == "flexbox" {
 		return s.Machines.Convert()
 	}
@@ -83,13 +93,14 @@ func (s PlaygroundSpec) convertMachines() []api.PlaygroundMachine {
 
 type PlaygroundMachines []PlaygroundMachine
 
-func (m PlaygroundMachines) Convert() []api.PlaygroundMachine {
-	return lo.Map(m, func(machine PlaygroundMachine, _ int) api.PlaygroundMachine {
+func (m PlaygroundMachines) Convert() []core.ContentPlaygroundMachine {
+	return lo.Map(m, func(machine PlaygroundMachine, _ int) core.ContentPlaygroundMachine {
 		return machine.Convert()
 	})
 }
 
 type PlaygroundMachine struct {
+	Metadata     map[string]any        `yaml:",inline"            json:"-"`
 	Name         string                `yaml:"name"               json:"name"`
 	Hostname     string                `yaml:"hostname,omitempty" json:"hostname,omitempty"`
 	IDEPath      string                `yaml:"idePath,omitempty"  json:"idePath,omitempty"`
@@ -103,18 +114,18 @@ type PlaygroundMachine struct {
 	NoSSH        bool                  `yaml:"noSSH,omitzero"     json:"noSSH,omitzero"`
 }
 
-func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
-	var playgroundStartupFiles []api.MachineStartupFile
+func (m PlaygroundMachine) Convert() core.ContentPlaygroundMachine {
+	var playgroundStartupFiles []core.StartupFile
 
 	if m.Hostname != "" {
-		hostname := api.MachineStartupFile{
+		hostname := core.StartupFile{
 			Path:    "/etc/hostname",
 			Content: m.Hostname,
 			Mode:    "755",
 			Owner:   "root:root",
 		}
 
-		hosts := api.MachineStartupFile{
+		hosts := core.StartupFile{
 			Path:    "/etc/hosts",
 			Content: fmt.Sprintf("127.0.0.1       %s %s.local\n", m.Hostname, m.Hostname),
 			Append:  true,
@@ -124,7 +135,7 @@ func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
 	}
 
 	if m.IDEPath != "" {
-		codeServerEnv := api.MachineStartupFile{
+		codeServerEnv := core.StartupFile{
 			Path:    "/etc/default/code-server",
 			Content: fmt.Sprintf("CODE_SERVER_PATH=%s\n", m.IDEPath),
 			Owner:   "root:root",
@@ -134,7 +145,8 @@ func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
 		playgroundStartupFiles = append(playgroundStartupFiles, codeServerEnv)
 	}
 
-	return api.PlaygroundMachine{
+	return core.ContentPlaygroundMachine{
+		Metadata:     m.Metadata,
 		Name:         m.Name,
 		Users:        m.Users.Convert(),
 		Backend:      m.Backend,
@@ -149,62 +161,77 @@ func (m PlaygroundMachine) Convert() api.PlaygroundMachine {
 
 type MachineUsers []MachineUser
 
-func (u MachineUsers) Convert() []api.MachineUser {
-	return lo.Map(u, func(user MachineUser, _ int) api.MachineUser {
+func (u MachineUsers) Convert() []core.MachineUser {
+	return lo.Map(u, func(user MachineUser, _ int) core.MachineUser {
 		return user.Convert()
 	})
 }
 
 type MachineUser struct {
-	Name        string `yaml:"name"                  json:"name"`
-	Default     bool   `yaml:"default,omitempty"     json:"default,omitempty"`
-	Welcome     string `yaml:"welcome,omitempty"     json:"welcome,omitempty"`
-	WelcomeFile string `yaml:"welcomeFile,omitempty" json:"welcomeFile,omitempty"`
+	Metadata    map[string]any `yaml:",inline"               json:"-"`
+	Name        string         `yaml:"name"                  json:"name"`
+	Default     bool           `yaml:"default,omitempty"     json:"default,omitempty"`
+	Welcome     string         `yaml:"welcome,omitempty"     json:"welcome,omitempty"`
+	WelcomeFile string         `yaml:"welcomeFile,omitempty" json:"welcomeFile,omitempty"`
 }
 
-func (u MachineUser) Convert() api.MachineUser {
-	return api.MachineUser{
-		Name:    u.Name,
-		Default: u.Default,
-		Welcome: u.Welcome,
+func (u MachineUser) Convert() core.MachineUser {
+	return core.MachineUser{
+		Metadata: u.Metadata,
+		Name:     u.Name,
+		Default:  u.Default,
+		Welcome:  u.Welcome,
 	}
 }
 
 type MachineStartupFiles []MachineStartupFile
 
-func (m MachineStartupFiles) Convert() []api.MachineStartupFile {
-	return lo.Map(m, func(file MachineStartupFile, _ int) api.MachineStartupFile {
+func (m MachineStartupFiles) Convert() []core.StartupFile {
+	return lo.Map(m, func(file MachineStartupFile, _ int) core.StartupFile {
 		return file.Convert()
 	})
 }
 
 type MachineStartupFile struct {
-	Path     string `yaml:"path"               json:"path"`
-	FromFile string `yaml:"fromFile,omitempty" json:"fromFile,omitempty"`
-	Content  string `yaml:"content,omitempty"  json:"content,omitempty"`
-	Mode     string `yaml:"mode,omitempty"     json:"mode,omitempty"`
-	Owner    string `yaml:"owner,omitempty"    json:"owner,omitempty"`
-	Append   bool   `yaml:"append,omitempty"   json:"append,omitempty"`
+	Metadata map[string]any `yaml:",inline"            json:"-"`
+	Source   string         `yaml:"source,omitempty"   json:"source,omitempty"`
+	Extract  bool           `yaml:"extract,omitempty"  json:"extract,omitempty"`
+	Machines []string       `yaml:"machines,omitempty" json:"machines,omitempty"`
+	Path     string         `yaml:"path"               json:"path"`
+	FromFile string         `yaml:"fromFile,omitempty" json:"fromFile,omitempty"`
+	Content  string         `yaml:"content,omitempty"  json:"content,omitempty"`
+	Mode     string         `yaml:"mode,omitempty"     json:"mode,omitempty"`
+	Owner    string         `yaml:"owner,omitempty"    json:"owner,omitempty"`
+	Append   bool           `yaml:"append,omitempty"   json:"append,omitempty"`
 }
 
-func (f MachineStartupFile) Convert() api.MachineStartupFile {
-	return api.MachineStartupFile{
-		Path:    f.Path,
-		Content: f.Content,
-		Mode:    f.Mode,
-		Owner:   f.Owner,
-		Append:  f.Append,
+func (f MachineStartupFile) Convert() core.StartupFile {
+	return core.StartupFile{
+		Metadata: f.Metadata,
+		Source:   f.Source,
+		Extract:  f.Extract,
+		Machines: slices.Clone(f.Machines),
+		Path:     f.Path,
+		Content:  f.Content,
+		Mode:     f.Mode,
+		Owner:    f.Owner,
+		Append:   f.Append,
 	}
 }
 
 type InitTasks map[string]InitTask
 
-func (t InitTasks) Convert() map[string]api.InitTask {
-	initTasks := map[string]api.InitTask{}
+func (t InitTasks) Convert() map[string]core.InitTask {
+	return t.convert(nil)
+}
+
+// Parent tasks can satisfy dependencies without being emitted again as overrides.
+func (t InitTasks) convert(parent map[string]api.InitTask) map[string]core.InitTask {
+	initTasks := map[string]core.InitTask{}
 
 	for name, initTask := range t {
-		for _, machine := range initTask.Machine {
-			for _, user := range initTask.User {
+		for _, machine := range taskTargets(initTask.Machine) {
+			for _, user := range taskTargets(initTask.User) {
 				newInitTask := initTask.ConvertCurrent(name, machine, user)
 
 				// Dependency check and resolution
@@ -245,6 +272,9 @@ func (t InitTasks) Convert() map[string]api.InitTask {
 						continue
 					}
 
+					if _, ok := parent[need]; ok {
+						continue
+					}
 					// dependency not found anywhere
 					panic("unknown dependency:" + need)
 				}
@@ -258,6 +288,7 @@ func (t InitTasks) Convert() map[string]api.InitTask {
 }
 
 type InitTask struct {
+	Metadata       map[string]any      `yaml:",inline"              json:"-"`
 	Name           string              `yaml:"name"                 json:"name"`
 	Machine        StringList          `yaml:"machine,omitempty"    json:"machine,omitempty"`
 	Init           bool                `yaml:"init"                 json:"init"`
@@ -268,8 +299,9 @@ type InitTask struct {
 	Conditions     []api.InitCondition `yaml:"conditions,omitempty" json:"conditions,omitempty"`
 }
 
-func (t InitTask) Convert() api.InitTask {
-	return api.InitTask{
+func (t InitTask) Convert() core.InitTask {
+	return core.InitTask{
+		Metadata:       t.Metadata,
 		Name:           t.Name,
 		Init:           t.Init,
 		TimeoutSeconds: t.TimeoutSeconds,
@@ -279,7 +311,7 @@ func (t InitTask) Convert() api.InitTask {
 	}
 }
 
-func (t InitTask) ConvertCurrent(name string, machine string, user string) api.InitTask {
+func (t InitTask) ConvertCurrent(name string, machine string, user string) core.InitTask {
 	initTask := t.Convert()
 	initTask.Machine = machine
 	initTask.User = user

@@ -13,6 +13,7 @@ import (
 	"github.com/iximiuz/labctl/content"
 	"github.com/sagikazarmark/go-finder"
 
+	"github.com/sagikazarmark/labx/core"
 	"github.com/sagikazarmark/labx/extended"
 )
 
@@ -42,7 +43,7 @@ func Playground(ctx GenerateContext) error {
 		return err
 	}
 
-	return nil
+	return stagePlaygroundStartupSources(ctx.Root, ctx.Output, manifest.Playground)
 }
 
 func convertPlaygroundManifest(
@@ -50,10 +51,10 @@ func convertPlaygroundManifest(
 	channel string,
 	baseTemplate *template.Template,
 	extraData map[string]any,
-) (api.PlaygroundManifest, error) {
+) (core.PlaygroundManifest, error) {
 	extendedManifest, err := loadYAMLFile[extended.PlaygroundManifest](fsys, "manifest.yaml")
 	if err != nil {
-		return api.PlaygroundManifest{}, err
+		return core.PlaygroundManifest{}, err
 	}
 
 	// basePlayground, err := getPlaygroundManifest(extendedManifest.Base)
@@ -86,7 +87,7 @@ func convertPlaygroundManifest(
 
 	extendedManifest, err = playgroundProcessor.Process(extendedManifest)
 	if err != nil {
-		return api.PlaygroundManifest{}, err
+		return core.PlaygroundManifest{}, err
 	}
 
 	manifest := extendedManifest.Convert()
@@ -114,7 +115,7 @@ func convertPlaygroundManifest(
 func renderPlaygroundMarkdown(
 	fsys fs.FS,
 	channel string,
-	manifest api.PlaygroundManifest,
+	manifest core.PlaygroundManifest,
 	baseTemplate *template.Template,
 	extraData map[string]any,
 ) (string, bool, error) {
@@ -161,7 +162,7 @@ func renderPlaygroundMarkdown(
 // playgroundTemplateData holds the data passed to playground template executions
 type playgroundTemplateData struct {
 	Channel  string
-	Manifest api.PlaygroundManifest
+	Manifest core.PlaygroundManifest
 	Extra    map[string]any
 }
 

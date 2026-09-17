@@ -51,6 +51,13 @@ func (p PlaygroundProcessor) Process(
 	}
 
 	playground.Playground.Machines = machines
+	playground.Playground.StartupFiles, err = processStartupFiles(
+		p.Fsys,
+		playground.Playground.StartupFiles,
+	)
+	if err != nil {
+		return extended.PlaygroundManifest{}, err
+	}
 
 	return playground, nil
 }
@@ -240,6 +247,7 @@ func (p MachineStartupFileProcessor) Process(
 		if err != nil {
 			return extended.MachineStartupFile{}, err
 		}
+		defer contentFile.Close()
 
 		content, err := io.ReadAll(contentFile)
 		if err != nil {
@@ -258,4 +266,19 @@ func (p MachineStartupFileProcessor) Process(
 	}
 
 	return startupFile, nil
+}
+
+func processStartupFiles(
+	fsys fs.FS,
+	files extended.MachineStartupFiles,
+) (extended.MachineStartupFiles, error) {
+	processor := MachineStartupFileProcessor{Fsys: fsys}
+	for i, file := range files {
+		processed, err := processor.Process(file)
+		if err != nil {
+			return nil, fmt.Errorf("processing startup file %d: %w", i, err)
+		}
+		files[i] = processed
+	}
+	return files, nil
 }

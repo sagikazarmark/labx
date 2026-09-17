@@ -40,6 +40,9 @@ func Content(ctx GenerateContext) error {
 		return fmt.Errorf("copy static files: %w", err)
 	}
 
+	if err := stageContentStartupSources(ctx.Root, ctx.Output, manifest); err != nil {
+		return err
+	}
 	return renderContentTemplates(renderCtx, tpl)
 }
 
@@ -57,30 +60,37 @@ func loadContentManifest(fsys fs.FS, channel string) (extended.ContentManifest, 
 
 		extendedManifest.Playground.BaseName = basePlayground.Name
 		extendedManifest.Playground.Base = basePlayground.Playground
+	}
 
-		machinesProcessor := MachinesProcessor{
-			MachineProcessor: MachineProcessor{
-				UserProcessor: MachineUserProcessor{
-					Fsys: fsys,
-				},
-				DriveProcessor: MachineDriveProcessor{
-					ContentKind:      extendedManifest.Kind,
-					ContentName:      "",
-					Channel:          channel,
-					DefaultImageRepo: defaultImageRepo,
-				},
-				StartupFileProcessor: MachineStartupFileProcessor{
-					Fsys: fsys,
-				},
+	machinesProcessor := MachinesProcessor{
+		MachineProcessor: MachineProcessor{
+			UserProcessor: MachineUserProcessor{
+				Fsys: fsys,
 			},
-		}
+			DriveProcessor: MachineDriveProcessor{
+				ContentKind:      extendedManifest.Kind,
+				ContentName:      "",
+				Channel:          channel,
+				DefaultImageRepo: defaultImageRepo,
+			},
+			StartupFileProcessor: MachineStartupFileProcessor{
+				Fsys: fsys,
+			},
+		},
+	}
 
-		machines, err := machinesProcessor.Process(extendedManifest.Playground.Machines)
-		if err != nil {
-			return extended.ContentManifest{}, err
-		}
+	machines, err := machinesProcessor.Process(extendedManifest.Playground.Machines)
+	if err != nil {
+		return extended.ContentManifest{}, err
+	}
 
-		extendedManifest.Playground.Machines = machines
+	extendedManifest.Playground.Machines = machines
+	extendedManifest.Playground.StartupFiles, err = processStartupFiles(
+		fsys,
+		extendedManifest.Playground.StartupFiles,
+	)
+	if err != nil {
+		return extended.ContentManifest{}, err
 	}
 
 	// Apply channel-specific title processing only for real content kinds (not lessons)
@@ -221,6 +231,8 @@ func renderContentTemplates(ctx renderContext, tpl *template.Template) error {
 		return renderCourse(ctx)
 	case content.KindTraining:
 		return renderTraining(ctx, tpl)
+	case content.KindSkillPath:
+		return renderSkillPathUnits(ctx, tpl)
 	}
 
 	return nil

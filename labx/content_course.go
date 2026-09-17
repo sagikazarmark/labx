@@ -399,6 +399,16 @@ func renderCourseDirectory(
 	if err != nil {
 		return fmt.Errorf("create lesson sub-filesystem: %w", err)
 	}
+	sourceRoot, err := ctx.Root.OpenRoot(directoryPath)
+	if err != nil {
+		return err
+	}
+	defer sourceRoot.Close()
+	outputRoot, err := ctx.Output.OpenRoot(outputPath)
+	if err != nil {
+		return err
+	}
+	defer outputRoot.Close()
 
 	tpl, err := createLessonTemplate(ctx.Root.FS(), lessonFS, ctx.BaseTemplate)
 	if err != nil {
@@ -446,7 +456,7 @@ func renderCourseDirectory(
 		}
 	}
 
-	return nil
+	return stageContentStartupSources(sourceRoot, outputRoot, manifest)
 }
 
 func loadContentManifestIfExists(fsys fs.FS) (core.ContentManifest, bool, error) {

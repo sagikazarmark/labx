@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/iximiuz/labctl/api"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/sagikazarmark/labx/core"
 	"github.com/sagikazarmark/labx/extended"
 )
 
@@ -28,10 +28,10 @@ func TestPlaygroundMachine_Hostname(t *testing.T) {
 		StartupFiles: extended.MachineStartupFiles{startupFile},
 	}
 
-	expected := api.PlaygroundMachine{
+	expected := core.ContentPlaygroundMachine{
 		Name:  "test",
-		Users: []api.MachineUser{},
-		StartupFiles: []api.MachineStartupFile{
+		Users: []core.MachineUser{},
+		StartupFiles: []core.StartupFile{
 			{
 				Path:    "/etc/hostname",
 				Content: hostname,

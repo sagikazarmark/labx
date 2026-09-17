@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/goccy/go-yaml"
-	"github.com/iximiuz/labctl/api"
 	"github.com/sagikazarmark/go-finder"
 
 	"github.com/sagikazarmark/labx/core"
@@ -161,7 +160,10 @@ func writeStringFile(output *os.Root, filePath, content string) error {
 	return err
 }
 
-func writeManifest[T api.PlaygroundManifest | core.ContentManifest](w io.Writer, manifest T) error {
+func writeManifest[T core.PlaygroundManifest | core.ContentManifest](
+	w io.Writer,
+	manifest T,
+) error {
 	_, isContent := any(manifest).(core.ContentManifest)
 	if isContent {
 		w = newFrontMatterWriter(w)
@@ -176,7 +178,7 @@ func writeManifest[T api.PlaygroundManifest | core.ContentManifest](w io.Writer,
 	return encoder.Encode(manifest)
 }
 
-func renderManifest[T api.PlaygroundManifest | core.ContentManifest](
+func renderManifest[T core.PlaygroundManifest | core.ContentManifest](
 	output *os.Root,
 	filePath string,
 	manifest T,
