@@ -1,0 +1,22 @@
+kind: shell-gym
+title: Shell navigation practice
+description: Practice changing directories in a Linux shell.
+createdAt: 2026-09-17
+categories: [linux]
+tagz: [shell, bash]
+playground:
+  name: ubuntu-26-04
+  startupFiles:
+    - path: /opt/shellgym/path
+      source: __static__/path.tar.gz
+      extract: true
+      owner: root
+  initTasks:
+    prepare:
+      init: true
+      run: mkdir -p /tmp/gym
+shellgym:
+  version: latest
+  path: /opt/shellgym/path
+  port: 63636
+repetition: [1, 3, 7, 14, 30]

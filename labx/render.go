@@ -3,7 +3,6 @@ package labx
 import (
 	"fmt"
 
-	"github.com/iximiuz/labctl/api"
 	"github.com/iximiuz/labctl/content"
 
 	"github.com/sagikazarmark/labx/core"
@@ -23,7 +22,7 @@ func Render(opts GenerateOpts) error {
 }
 
 func renderPlaygroundContent(ctx GenerateContext) error {
-	manifest, err := loadYAMLFile[api.PlaygroundManifest](ctx.Root.FS(), "manifest.yaml")
+	manifest, err := loadYAMLFile[core.PlaygroundManifest](ctx.Root.FS(), "manifest.yaml")
 	if err != nil {
 		return err
 	}
@@ -46,7 +45,10 @@ func renderPlaygroundContent(ctx GenerateContext) error {
 		}
 	}
 
-	return copyStaticFilesIfExists(ctx.Root, ctx.Output, "static", "__static__")
+	if err := copyStaticFilesIfExists(ctx.Root, ctx.Output, "static", "__static__"); err != nil {
+		return err
+	}
+	return stagePlaygroundStartupSources(ctx.Root, ctx.Output, manifest.Playground)
 }
 
 func renderContentOnly(ctx GenerateContext) error {
@@ -73,10 +75,16 @@ func renderContentOnly(ctx GenerateContext) error {
 		if err != nil {
 			return err
 		}
-	case content.KindTutorial:
+	case content.KindTutorial, content.KindBlogPost, content.KindShellGym,
+		content.KindRoadmap, content.KindVendor, content.KindSkillPath:
 		err = renderRootTemplate(renderCtx, tpl, "index.md")
 		if err != nil {
 			return err
+		}
+		if manifest.Kind == content.KindSkillPath {
+			if err := renderSkillPathUnits(renderCtx, tpl); err != nil {
+				return err
+			}
 		}
 	case content.KindTraining:
 		_, err = renderProgram(renderCtx, tpl)
@@ -97,5 +105,8 @@ func renderContentOnly(ctx GenerateContext) error {
 		return fmt.Errorf("unsupported content kind %q", manifest.Kind)
 	}
 
-	return copyStaticFilesIfExists(ctx.Root, ctx.Output, "static", "__static__")
+	if err := copyStaticFilesIfExists(ctx.Root, ctx.Output, "static", "__static__"); err != nil {
+		return err
+	}
+	return stageContentStartupSources(ctx.Root, ctx.Output, manifest)
 }

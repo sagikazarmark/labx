@@ -11,17 +11,22 @@ import (
 )
 
 type ContentManifest struct {
-	Kind        content.ContentKind   `yaml:"kind"        json:"kind"`
-	Title       string                `yaml:"title"       json:"title"`
-	Description string                `yaml:"description" json:"description"`
-	Channels    map[string]Channel    `yaml:"channels"    json:"channels"`
-	Categories  []string              `yaml:"categories"  json:"categories"`
-	Tags        []string              `yaml:"tagz"        json:"tagz"`
-	CreatedAt   string                `yaml:"createdAt"   json:"createdAt"`
-	UpdatedAt   string                `yaml:"updatedAt"   json:"updatedAt"`
-	Cover       string                `yaml:"cover"       json:"cover"`
-	Playground  ContentPlaygroundSpec `yaml:"playground"  json:"playground"`
-	Tasks       map[string]Task       `yaml:"tasks"       json:"tasks"`
+	Metadata     map[string]any        `yaml:",inline"                json:"-"`
+	Difficulties []string              `yaml:"difficulties,omitempty" json:"difficulties,omitempty"`
+	Kind         content.ContentKind   `yaml:"kind"                   json:"kind"`
+	Title        string                `yaml:"title"                  json:"title"`
+	Description  string                `yaml:"description"            json:"description"`
+	Channels     map[string]Channel    `yaml:"channels"               json:"channels"`
+	Categories   []string              `yaml:"categories"             json:"categories"`
+	Tags         []string              `yaml:"tagz"                   json:"tagz"`
+	CreatedAt    string                `yaml:"createdAt"              json:"createdAt"`
+	UpdatedAt    string                `yaml:"updatedAt"              json:"updatedAt"`
+	Cover        string                `yaml:"cover"                  json:"cover"`
+	Playground   ContentPlaygroundSpec `yaml:"playground"             json:"playground"`
+	Tasks        map[string]Task       `yaml:"tasks"                  json:"tasks"`
+	Vars         map[string]any        `yaml:"vars,omitempty"         json:"vars,omitempty"`
+	ShellGym     *core.ShellGym        `yaml:"shellgym,omitempty"     json:"shellgym,omitempty"`
+	Repetition   *[]int                `yaml:"repetition,omitempty"   json:"repetition,omitempty"`
 
 	// Challenge specific fields
 	Difficulty string `yaml:"difficulty,omitempty" json:"difficulty,omitempty"`
@@ -31,9 +36,11 @@ type ContentManifest struct {
 	Slug string `yaml:"slug,omitempty" json:"slug,omitempty"`
 
 	// Content embedding
-	Challenges map[string]struct{}    `yaml:"challenges,omitempty" json:"challenges,omitempty"`
-	Tutorials  map[string]struct{}    `yaml:"tutorials,omitempty"  json:"tutorials,omitempty"`
-	Courses    map[string]CourseEmbed `yaml:"courses,omitempty"    json:"courses,omitempty"`
+	Challenges  map[string]struct{}    `yaml:"challenges,omitempty"  json:"challenges,omitempty"`
+	Tutorials   map[string]struct{}    `yaml:"tutorials,omitempty"   json:"tutorials,omitempty"`
+	Courses     map[string]CourseEmbed `yaml:"courses,omitempty"     json:"courses,omitempty"`
+	Playgrounds map[string]struct{}    `yaml:"playgrounds,omitempty" json:"playgrounds,omitempty"`
+	SkillPaths  map[string]struct{}    `yaml:"skill-paths,omitempty" json:"skill-paths,omitempty"`
 
 	// Training specific fields
 	WorkingTitle string `yaml:"workingTitle,omitempty" json:"workingTitle,omitempty"`
@@ -41,24 +48,31 @@ type ContentManifest struct {
 
 func (m ContentManifest) Convert() core.ContentManifest {
 	v := core.ContentManifest{
-		Kind:        m.Kind,
-		Title:       m.Title,
-		Description: m.Description,
-		Categories:  m.Categories,
-		Tags:        m.Tags,
-		CreatedAt:   m.CreatedAt,
-		UpdatedAt:   m.UpdatedAt,
-		Cover:       m.Cover,
+		Metadata:     m.Metadata,
+		ShellGym:     m.ShellGym,
+		Repetition:   m.Repetition,
+		Difficulties: m.Difficulties,
+		Kind:         m.Kind,
+		Title:        m.Title,
+		Description:  m.Description,
+		Categories:   m.Categories,
+		Tags:         m.Tags,
+		CreatedAt:    m.CreatedAt,
+		UpdatedAt:    m.UpdatedAt,
+		Cover:        m.Cover,
 		// Playground:  m.Playground.Convert(),
 		Tasks: m.convertTasks(),
+		Vars:  m.Vars,
 
 		Difficulty: m.Difficulty,
 
 		Name: m.Name,
 		Slug: m.Slug,
 
-		Challenges: m.Challenges,
-		Tutorials:  m.Tutorials,
+		Challenges:  m.Challenges,
+		Tutorials:   m.Tutorials,
+		Playgrounds: m.Playgrounds,
+		SkillPaths:  m.SkillPaths,
 
 		WorkingTitle: m.WorkingTitle,
 	}
@@ -74,8 +88,8 @@ func (m ContentManifest) convertTasks() map[string]core.Task {
 	tasks := map[string]core.Task{}
 
 	for name, task := range m.Tasks {
-		for _, machine := range task.Machine {
-			for _, user := range task.User {
+		for _, machine := range taskTargets(task.Machine) {
+			for _, user := range taskTargets(task.User) {
 				newTask := task.ConvertCurrent(machine, user)
 
 				// Dependency check and resolution
@@ -116,6 +130,15 @@ func (m ContentManifest) convertTasks() map[string]core.Task {
 						continue
 					}
 
+					// Content can depend on locally declared playground init tasks too.
+					if dep, ok := m.Playground.InitTasks[need]; ok {
+						if len(dep.User) > 1 && !slices.Contains(dep.User, user) {
+							panic("invalid dependency: user")
+						}
+						newTask.Needs[i] = dep.currentName(need, machine, user)
+						continue
+					}
+
 					// Task not found in content tasks; let's check the playground
 					//
 					// Machine name AND user
@@ -150,11 +173,17 @@ func (m ContentManifest) convertTasks() map[string]core.Task {
 }
 
 type ContentPlaygroundSpec struct {
-	Name     string                  `yaml:"name"     json:"name"`
-	Welcome  string                  `yaml:"welcome"  json:"welcome"`
-	Networks []api.PlaygroundNetwork `yaml:"networks" json:"networks"`
-	Machines PlaygroundMachines      `yaml:"machines" json:"machines"`
-	Tabs     []api.PlaygroundTab     `yaml:"tabs"     json:"tabs"`
+	Metadata       map[string]any          `yaml:",inline"                  json:"-"`
+	InitTasks      InitTasks               `yaml:"initTasks,omitempty"      json:"initTasks,omitempty"`
+	InitConditions api.InitConditions      `yaml:"initConditions,omitempty" json:"initConditions,omitempty"`
+	PortForwards   []api.PortForward       `yaml:"portForwards,omitempty"   json:"portForwards,omitempty"`
+	StartupFiles   MachineStartupFiles     `yaml:"startupFiles,omitempty"   json:"startupFiles,omitempty"`
+	RegistryAuth   string                  `yaml:"registryAuth,omitempty"   json:"registryAuth,omitempty"`
+	Name           string                  `yaml:"name"                     json:"name"`
+	Welcome        string                  `yaml:"welcome"                  json:"welcome"`
+	Networks       []api.PlaygroundNetwork `yaml:"networks"                 json:"networks"`
+	Machines       PlaygroundMachines      `yaml:"machines"                 json:"machines"`
+	Tabs           []api.PlaygroundTab     `yaml:"tabs"                     json:"tabs"`
 
 	BaseName string             `yaml:"-" json:"-"`
 	Base     api.PlaygroundSpec `yaml:"-" json:"-"`
@@ -162,31 +191,24 @@ type ContentPlaygroundSpec struct {
 
 func (s ContentPlaygroundSpec) Convert() core.ContentPlaygroundSpec {
 	return core.ContentPlaygroundSpec{
-		Name:     s.Name,
-		Networks: s.Networks,
-		Machines: s.convertMachines(),
-		Tabs:     s.Tabs,
+		Metadata:       s.Metadata,
+		InitTasks:      s.InitTasks.convert(s.Base.InitTasks),
+		InitConditions: s.InitConditions,
+		PortForwards:   s.PortForwards,
+		StartupFiles: append(
+			core.StartupFilesFromAPI(s.Base.StartupFiles),
+			s.StartupFiles.Convert()...),
+		RegistryAuth: s.RegistryAuth,
+		Name:         s.Name,
+		Networks:     s.Networks,
+		Machines:     s.convertMachines(),
+		Tabs:         s.Tabs,
 	}
 }
 
 func (s ContentPlaygroundSpec) convertMachines() []core.ContentPlaygroundMachine {
 	if s.BaseName == "flexbox" {
-		return lo.Map(
-			s.Machines.Convert(),
-			func(machine api.PlaygroundMachine, _ int) core.ContentPlaygroundMachine {
-				return core.ContentPlaygroundMachine{
-					Name:         machine.Name,
-					Users:        machine.Users,
-					Backend:      machine.Backend,
-					Kernel:       machine.Kernel,
-					Drives:       machine.Drives,
-					Network:      machine.Network,
-					Resources:    machine.Resources,
-					StartupFiles: machine.StartupFiles,
-					NoSSH:        machine.NoSSH,
-				}
-			},
-		)
+		return s.Machines.Convert()
 	}
 
 	parentMachines := lo.SliceToMap(
@@ -202,7 +224,7 @@ func (s ContentPlaygroundSpec) convertMachines() []core.ContentPlaygroundMachine
 		parentMachine := parentMachines[machine.Name]
 
 		machines[i].StartupFiles = append(
-			slices.Clone(parentMachine.StartupFiles),
+			core.StartupFilesFromAPI(parentMachine.StartupFiles),
 			machine.StartupFiles...)
 
 		// Apply welcome message to default users if specified
@@ -215,39 +237,28 @@ func (s ContentPlaygroundSpec) convertMachines() []core.ContentPlaygroundMachine
 		}
 	}
 
-	return lo.Map(
-		machines,
-		func(machine api.PlaygroundMachine, _ int) core.ContentPlaygroundMachine {
-			return core.ContentPlaygroundMachine{
-				Name:         machine.Name,
-				Users:        machine.Users,
-				Backend:      machine.Backend,
-				Kernel:       machine.Kernel,
-				Drives:       machine.Drives,
-				Network:      machine.Network,
-				Resources:    machine.Resources,
-				StartupFiles: machine.StartupFiles,
-				NoSSH:        machine.NoSSH,
-			}
-		},
-	)
+	return machines
 }
 
 type Task struct {
-	Machine        StringList `yaml:"machine,omitempty" json:"machine,omitempty"`
-	Init           bool       `yaml:"init"              json:"init"`
-	User           StringList `yaml:"user"              json:"user"`
-	TimeoutSeconds int        `yaml:"timeout_seconds"   json:"timeout_seconds"`
-	Needs          []string   `yaml:"needs,omitempty"   json:"needs,omitempty"`
-	Env            []string   `yaml:"env,omitempty"     json:"env,omitempty"`
-	Run            string     `yaml:"run"               json:"run"`
-	HintCheck      string     `yaml:"hintcheck"         json:"hintcheck"`
-	FailCheck      string     `yaml:"failcheck"         json:"failcheck"`
+	Metadata       map[string]any `yaml:",inline"           json:"-"`
+	Machine        StringList     `yaml:"machine,omitempty" json:"machine,omitempty"`
+	Init           bool           `yaml:"init"              json:"init"`
+	Helper         bool           `yaml:"helper,omitempty"  json:"helper,omitempty"`
+	User           StringList     `yaml:"user"              json:"user"`
+	TimeoutSeconds int            `yaml:"timeout_seconds"   json:"timeout_seconds"`
+	Needs          []string       `yaml:"needs,omitempty"   json:"needs,omitempty"`
+	Env            []string       `yaml:"env,omitempty"     json:"env,omitempty"`
+	Run            string         `yaml:"run"               json:"run"`
+	HintCheck      string         `yaml:"hintcheck"         json:"hintcheck"`
+	FailCheck      string         `yaml:"failcheck"         json:"failcheck"`
 }
 
 func (t Task) Convert() core.Task {
 	return core.Task{
+		Metadata:       t.Metadata,
 		Init:           t.Init,
+		Helper:         t.Helper,
 		TimeoutSeconds: t.TimeoutSeconds,
 		Needs:          slices.Clone(t.Needs),
 		Env:            slices.Clone(t.Env),
